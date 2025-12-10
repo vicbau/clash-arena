@@ -9,7 +9,9 @@ function App() {
   const [view, setView] = useState('login');
   const [gamertag, setGamertag] = useState('');
   const [password, setPassword] = useState('');
+  const [playerTag, setPlayerTag] = useState('');
   const [error, setError] = useState('');
+  const [verifying, setVerifying] = useState(false);
   const [opponent, setOpponent] = useState(null);
   const [matchId, setMatchId] = useState(null);
   const [searchingMatch, setSearchingMatch] = useState(false);
@@ -42,6 +44,7 @@ function App() {
       }));
       setView('result');
       setWaitingForOpponent(false);
+      setVerifying(false);
     });
 
     socket.on('match_disputed', () => {
@@ -118,7 +121,7 @@ function App() {
       const response = await fetch(API_URL + '/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gamertag, password })
+        body: JSON.stringify({ gamertag, password, playerTag })
       });
       const data = await response.json();
       if (response.ok) {
@@ -127,11 +130,35 @@ function App() {
         setView('home');
         setGamertag('');
         setPassword('');
+        setPlayerTag('');
       } else {
         setError(data.error);
       }
     } catch (err) {
       setError('Erreur de connexion au serveur');
+    }
+  };
+
+  const verifyMatch = async () => {
+    if (!matchId || !currentUser) return;
+    setVerifying(true);
+    setError('');
+    try {
+      const response = await fetch(API_URL + '/api/verify-match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ matchId, userId: currentUser.id })
+      });
+      const data = await response.json();
+      if (response.ok && data.verified) {
+        // Le match_resolved sera reçu via socket
+      } else {
+        setError(data.error || 'Impossible de verifier le match');
+        setVerifying(false);
+      }
+    } catch (err) {
+      setError('Erreur de connexion au serveur');
+      setVerifying(false);
     }
   };
 
@@ -225,6 +252,11 @@ function App() {
           <input type="text" value={gamertag} onChange={(e) => setGamertag(e.target.value)} placeholder="Choisis ton pseudo" className="input" />
         </div>
         <div className="input-group">
+          <label className="label">Tag Clash Royale</label>
+          <input type="text" value={playerTag} onChange={(e) => setPlayerTag(e.target.value)} placeholder="#ABC123XYZ" className="input" />
+          <p className="input-help">Trouve ton tag dans Clash Royale : Profil → sous ton nom</p>
+        </div>
+        <div className="input-group">
           <label className="label">Mot de passe</label>
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="input" />
         </div>
@@ -295,11 +327,11 @@ function App() {
         </div>
       ) : opponent ? (
         <div className="match-found-box">
-          {waitingForOpponent ? (
+          {verifying ? (
             <div className="waiting-box">
               <div className="searching-spinner"></div>
-              <h2 className="searching-title">En attente...</h2>
-              <p className="waiting-text">Attente de la declaration de l'adversaire</p>
+              <h2 className="searching-title">Verification...</h2>
+              <p className="waiting-text">Verification du resultat via Clash Royale API</p>
             </div>
           ) : (
             <>
@@ -317,12 +349,13 @@ function App() {
                   <p className="player-trophies">🏆 {opponent.trophies}</p>
                 </div>
               </div>
-              <p className="match-instructions">Lancez votre partie Clash Royale !<br />Revenez declarer le resultat apres le match.</p>
-              <div className="result-buttons">
-                <button onClick={() => declareResult(true)} className="victory-button">✅ J'AI GAGNE</button>
-                <button onClick={() => declareResult(false)} className="defeat-button">❌ J'AI PERDU</button>
+              <div className="match-instructions-box">
+                <p className="match-instructions">📱 Jouez votre match dans Clash Royale</p>
+                <p className="match-instructions-sub">Ajoutez-vous en ami et faites un match amical,<br />puis cliquez sur le bouton ci-dessous.</p>
               </div>
-              <button onClick={() => { setView('home'); setOpponent(null); setMatchId(null); }} className="cancel-button">Annuler</button>
+              {error && <p className="error">{error}</p>}
+              <button onClick={verifyMatch} className="verify-button">🔍 VERIFIER LE RESULTAT</button>
+              <button onClick={() => { setView('home'); setOpponent(null); setMatchId(null); setError(''); }} className="cancel-button">Annuler</button>
             </>
           )}
         </div>
@@ -342,7 +375,7 @@ function App() {
             <span>🏆</span>
           </div>
           <p className="new-trophies">Nouveau total : <strong>{currentUser?.trophies}</strong> trophees</p>
-          <button onClick={() => { setView('home'); setOpponent(null); setMatchId(null); setMatchResult(null); }} className="continue-button">CONTINUER</button>
+          <button onClick={() => { setView('home'); setOpponent(null); setMatchId(null); setMatchResult(null); setVerifying(false); setError(''); }} className="continue-button">CONTINUER</button>
         </div>
       </div>
     );
