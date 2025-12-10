@@ -142,7 +142,7 @@ mongoose.connect(process.env.MONGODB_URI)
 
 // Route de test
 app.get('/', (req, res) => {
-  res.json({ message: 'Clash Arena API is running!' });
+  res.json({ message: 'Clash Arena API v2 is running!' });
 });
 
 // Route pour trouver l'IP du serveur
