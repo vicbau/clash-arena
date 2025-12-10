@@ -5,6 +5,7 @@ const { Server } = require('socket.io');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const fetch = require('node-fetch');
+const { HttpsProxyAgent } = require('https-proxy-agent');
 
 const User = require('./models/User');
 const Match = require('./models/Match');
@@ -13,14 +14,19 @@ const Match = require('./models/Match');
 const CLASH_API_BASE = 'https://api.clashroyale.com/v1';
 const CLASH_API_KEY = process.env.CLASH_ROYALE_API_KEY;
 
+// Configuration du proxy Fixie pour IP statique
+const FIXIE_URL = process.env.FIXIE_URL;
+const proxyAgent = FIXIE_URL ? new HttpsProxyAgent(FIXIE_URL) : null;
+
 // Logging de la configuration au démarrage
 console.log('=== Configuration ===');
 console.log('CLASH_API_KEY present:', !!CLASH_API_KEY);
+console.log('FIXIE_URL present:', !!FIXIE_URL);
 console.log('FRONTEND_URL:', process.env.FRONTEND_URL);
 console.log('MONGODB_URI present:', !!process.env.MONGODB_URI);
 console.log('===================');
 
-// Fonction pour appeler l'API Clash Royale
+// Fonction pour appeler l'API Clash Royale (via proxy Fixie)
 async function fetchClashAPI(endpoint) {
   if (!CLASH_API_KEY) {
     throw new Error('CLASH_ROYALE_API_KEY non configure');
@@ -28,12 +34,20 @@ async function fetchClashAPI(endpoint) {
 
   console.log('Calling Clash API:', CLASH_API_BASE + endpoint);
 
-  const response = await fetch(CLASH_API_BASE + endpoint, {
+  const fetchOptions = {
     headers: {
       'Authorization': 'Bearer ' + CLASH_API_KEY,
       'Accept': 'application/json'
     }
-  });
+  };
+
+  // Utiliser le proxy Fixie si disponible
+  if (proxyAgent) {
+    fetchOptions.agent = proxyAgent;
+    console.log('Using Fixie proxy');
+  }
+
+  const response = await fetch(CLASH_API_BASE + endpoint, fetchOptions);
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -161,6 +175,7 @@ app.get('/api/debug', async (req, res) => {
   const debugInfo = {
     hasApiKey: !!CLASH_API_KEY,
     apiKeyLength: CLASH_API_KEY ? CLASH_API_KEY.length : 0,
+    hasFixieProxy: !!FIXIE_URL,
     frontendUrl: process.env.FRONTEND_URL,
     nodeVersion: process.version
   };
