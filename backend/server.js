@@ -8,6 +8,66 @@ const cors = require('cors');
 const User = require('./models/User');
 const Match = require('./models/Match');
 
+// Configuration API Clash Royale
+const CLASH_API_BASE = 'https://api.clashroyale.com/v1';
+const CLASH_API_KEY = process.env.CLASH_ROYALE_API_KEY;
+
+// Fonction pour appeler l'API Clash Royale
+async function fetchClashAPI(endpoint) {
+  const response = await fetch(CLASH_API_BASE + endpoint, {
+    headers: {
+      'Authorization': 'Bearer ' + CLASH_API_KEY,
+      'Accept': 'application/json'
+    }
+  });
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error('Clash API Error: ' + response.status + ' - ' + error);
+  }
+  return response.json();
+}
+
+// Fonction pour récupérer le battlelog d'un joueur
+async function getPlayerBattleLog(playerTag) {
+  // Le tag doit être encodé (# devient %23)
+  const encodedTag = encodeURIComponent(playerTag);
+  return fetchClashAPI('/players/' + encodedTag + '/battlelog');
+}
+
+// Fonction pour vérifier un match entre deux joueurs
+async function verifyMatchResult(player1Tag, player2Tag) {
+  try {
+    const battleLog = await getPlayerBattleLog(player1Tag);
+
+    // Chercher un match récent entre les deux joueurs (dans les 25 dernières batailles)
+    for (const battle of battleLog) {
+      // Vérifier si c'est un match 1v1
+      if (battle.type === 'PvP' || battle.type === 'challenge' || battle.type === 'pathOfLegend') {
+        const opponentTag = battle.opponent && battle.opponent[0] && battle.opponent[0].tag;
+
+        if (opponentTag === player2Tag) {
+          // Match trouvé ! Vérifier le résultat
+          const player1Crowns = battle.team[0].crowns;
+          const player2Crowns = battle.opponent[0].crowns;
+
+          if (player1Crowns > player2Crowns) {
+            return { found: true, winner: player1Tag, loser: player2Tag };
+          } else if (player2Crowns > player1Crowns) {
+            return { found: true, winner: player2Tag, loser: player1Tag };
+          } else {
+            return { found: true, winner: null, loser: null, draw: true };
+          }
+        }
+      }
+    }
+
+    return { found: false };
+  } catch (error) {
+    console.error('Erreur verification match:', error);
+    return { found: false, error: error.message };
+  }
+}
+
 const app = express();
 const server = http.createServer(app);
 
@@ -48,13 +108,38 @@ app.get('/', (req, res) => {
   res.json({ message: 'Clash Arena API is running!' });
 });
 
+// Vérifier un tag Clash Royale
+app.get('/api/verify-player/:tag', async (req, res) => {
+  try {
+    let playerTag = req.params.tag;
+    // Ajouter # si absent
+    if (!playerTag.startsWith('#')) {
+      playerTag = '#' + playerTag;
+    }
+
+    const encodedTag = encodeURIComponent(playerTag);
+    const playerData = await fetchClashAPI('/players/' + encodedTag);
+
+    res.json({
+      valid: true,
+      name: playerData.name,
+      tag: playerData.tag,
+      trophies: playerData.trophies,
+      arena: playerData.arena ? playerData.arena.name : 'Unknown'
+    });
+  } catch (error) {
+    console.error('Erreur verification tag:', error);
+    res.status(400).json({ valid: false, error: 'Tag Clash Royale invalide ou introuvable' });
+  }
+});
+
 // Inscription
 app.post('/api/register', async (req, res) => {
   try {
-    const { gamertag, password } = req.body;
+    const { gamertag, password, playerTag } = req.body;
 
-    if (!gamertag || !password) {
-      return res.status(400).json({ error: 'Gamertag et mot de passe requis' });
+    if (!gamertag || !password || !playerTag) {
+      return res.status(400).json({ error: 'Gamertag, mot de passe et tag Clash Royale requis' });
     }
     if (gamertag.length < 3) {
       return res.status(400).json({ error: 'Le gamertag doit faire au moins 3 caracteres' });
@@ -63,20 +148,40 @@ app.post('/api/register', async (req, res) => {
       return res.status(400).json({ error: 'Le mot de passe doit faire au moins 4 caracteres' });
     }
 
-    const existingUser = await User.findOne({ 
-      gamertag: { $regex: new RegExp('^' + gamertag + '$', 'i') } 
+    // Formater le playerTag
+    let formattedTag = playerTag.trim().toUpperCase();
+    if (!formattedTag.startsWith('#')) {
+      formattedTag = '#' + formattedTag;
+    }
+
+    // Vérifier que le tag existe dans Clash Royale
+    try {
+      const encodedTag = encodeURIComponent(formattedTag);
+      await fetchClashAPI('/players/' + encodedTag);
+    } catch (err) {
+      return res.status(400).json({ error: 'Tag Clash Royale invalide ou introuvable' });
+    }
+
+    const existingUser = await User.findOne({
+      gamertag: { $regex: new RegExp('^' + gamertag + '$', 'i') }
     });
 
     if (existingUser) {
       return res.status(400).json({ error: 'Ce gamertag est deja pris' });
     }
 
-    const user = new User({ gamertag, password });
+    const existingTag = await User.findOne({ playerTag: formattedTag });
+    if (existingTag) {
+      return res.status(400).json({ error: 'Ce tag Clash Royale est deja utilise' });
+    }
+
+    const user = new User({ gamertag, password, playerTag: formattedTag });
     await user.save();
 
     res.status(201).json({
       id: user._id,
       gamertag: user.gamertag,
+      playerTag: user.playerTag,
       trophies: user.trophies,
       wins: user.wins,
       losses: user.losses
@@ -92,8 +197,8 @@ app.post('/api/login', async (req, res) => {
   try {
     const { gamertag, password } = req.body;
 
-    const user = await User.findOne({ 
-      gamertag: { $regex: new RegExp('^' + gamertag + '$', 'i') } 
+    const user = await User.findOne({
+      gamertag: { $regex: new RegExp('^' + gamertag + '$', 'i') }
     });
 
     if (!user) {
@@ -111,12 +216,101 @@ app.post('/api/login', async (req, res) => {
     res.json({
       id: user._id,
       gamertag: user.gamertag,
+      playerTag: user.playerTag,
       trophies: user.trophies,
       wins: user.wins,
       losses: user.losses
     });
   } catch (error) {
     console.error('Erreur connexion:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Vérifier automatiquement le résultat d'un match via l'API Clash Royale
+app.post('/api/verify-match', async (req, res) => {
+  try {
+    const { matchId, userId } = req.body;
+
+    const match = await Match.findById(matchId);
+    if (!match) {
+      return res.status(404).json({ error: 'Match non trouve' });
+    }
+
+    const player1 = await User.findById(match.player1);
+    const player2 = await User.findById(match.player2);
+
+    if (!player1 || !player2) {
+      return res.status(404).json({ error: 'Joueurs non trouves' });
+    }
+
+    // Vérifier le résultat via l'API Clash Royale
+    const result = await verifyMatchResult(player1.playerTag, player2.playerTag);
+
+    if (!result.found) {
+      return res.status(400).json({
+        verified: false,
+        error: 'Match non trouve dans le battlelog. Jouez votre match dans Clash Royale puis reessayez.'
+      });
+    }
+
+    if (result.draw) {
+      return res.status(400).json({
+        verified: false,
+        error: 'Match nul detecte. Les matchs nuls ne comptent pas.'
+      });
+    }
+
+    // Déterminer le gagnant
+    const winnerId = result.winner === player1.playerTag ? player1._id : player2._id;
+    const loserId = result.winner === player1.playerTag ? player2._id : player1._id;
+
+    const winner = result.winner === player1.playerTag ? player1 : player2;
+    const loser = result.winner === player1.playerTag ? player2 : player1;
+
+    // Mettre à jour les scores
+    winner.trophies += 30;
+    winner.wins += 1;
+    loser.trophies = Math.max(0, loser.trophies - 30);
+    loser.losses += 1;
+
+    await winner.save();
+    await loser.save();
+
+    // Mettre à jour le match
+    match.winner = winnerId;
+    match.status = 'completed';
+    match.completedAt = new Date();
+    await match.save();
+
+    // Notifier les deux joueurs
+    const isPlayer1Winner = winnerId.toString() === player1._id.toString();
+
+    notifyUser(player1._id, 'match_resolved', {
+      matchId: match._id,
+      won: isPlayer1Winner,
+      newTrophies: player1.trophies,
+      trophyChange: isPlayer1Winner ? 30 : -30
+    });
+
+    notifyUser(player2._id, 'match_resolved', {
+      matchId: match._id,
+      won: !isPlayer1Winner,
+      newTrophies: player2.trophies,
+      trophyChange: !isPlayer1Winner ? 30 : -30
+    });
+
+    res.json({
+      verified: true,
+      winner: winner.gamertag,
+      loser: loser.gamertag,
+      yourResult: userId === winnerId.toString() ? 'win' : 'loss'
+    });
+
+    console.log('Match verifie automatiquement: ' + winner.gamertag + ' bat ' + loser.gamertag);
+
+  } catch (error) {
+    console.error('Erreur verification match:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
@@ -131,6 +325,7 @@ app.get('/api/user/:id', async (req, res) => {
     res.json({
       id: user._id,
       gamertag: user.gamertag,
+      playerTag: user.playerTag,
       trophies: user.trophies,
       wins: user.wins,
       losses: user.losses

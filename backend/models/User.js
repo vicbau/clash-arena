@@ -10,6 +10,12 @@ const userSchema = new mongoose.Schema({
     minlength: 3,
     maxlength: 20
   },
+  playerTag: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true
+  },
   password: {
     type: String,
     required: true,

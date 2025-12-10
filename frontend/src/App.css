@@ -721,3 +721,55 @@ button:active {
   color: rgba(255, 255, 255, 0.7);
   margin-top: 1rem;
 }
+
+/* Input Help Text */
+.input-help {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Match Instructions Box */
+.match-instructions-box {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1.5rem;
+  border-radius: 15px;
+  margin-bottom: 1.5rem;
+  border: 1px solid rgba(255, 215, 0, 0.2);
+}
+
+.match-instructions {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #FFD700;
+  margin-bottom: 0.5rem;
+  background: none;
+  padding: 0;
+  border-radius: 0;
+}
+
+.match-instructions-sub {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+/* Verify Button */
+.verify-button {
+  width: 100%;
+  padding: 1.2rem;
+  background: linear-gradient(135deg, #9C27B0 0%, #6A1B9A 100%);
+  border: none;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-family: 'Rajdhani', sans-serif;
+  text-transform: uppercase;
+  margin-bottom: 1rem;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.verify-button:hover {
+  background: linear-gradient(135deg, #AB47BC 0%, #7B1FA2 100%);
+}
