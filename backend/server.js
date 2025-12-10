@@ -72,17 +72,30 @@ async function getPlayerBattleLog(playerTag) {
   return fetchClashAPI('/players/' + encodedTag + '/battlelog');
 }
 
+// Fonction pour parser le temps de bataille Clash Royale (format: 20251210T144602.000Z)
+function parseBattleTime(battleTime) {
+  // Format: YYYYMMDDTHHmmss.000Z
+  const year = battleTime.substring(0, 4);
+  const month = battleTime.substring(4, 6);
+  const day = battleTime.substring(6, 8);
+  const hour = battleTime.substring(9, 11);
+  const minute = battleTime.substring(11, 13);
+  const second = battleTime.substring(13, 15);
+  return new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}Z`);
+}
+
 // Fonction pour vérifier un match entre deux joueurs
-async function verifyMatchResult(player1Tag, player2Tag) {
+async function verifyMatchResult(player1Tag, player2Tag, matchCreatedAt) {
   try {
     console.log('Verifying match between', player1Tag, 'and', player2Tag);
+    console.log('Match created at:', matchCreatedAt);
     const battleLog = await getPlayerBattleLog(player1Tag);
 
     console.log('Battlelog received, number of battles:', battleLog.length);
 
     // Chercher un match récent entre les deux joueurs (dans les 25 dernières batailles)
     for (const battle of battleLog) {
-      console.log('Checking battle type:', battle.type);
+      console.log('Checking battle type:', battle.type, '| Time:', battle.battleTime);
 
       // Vérifier si c'est un match 1v1 (inclut les matchs amicaux)
       const validTypes = ['PvP', 'challenge', 'pathOfLegend', 'friendly', 'clanMate', 'clanWarCollectionDay', 'clanWarWarDay'];
@@ -93,11 +106,20 @@ async function verifyMatchResult(player1Tag, player2Tag) {
         console.log('Opponent tag in battle:', opponentTag, '| Looking for:', player2Tag);
 
         if (opponentTag === player2Tag) {
-          // Match trouvé ! Vérifier le résultat
+          // Vérifier que le combat a eu lieu APRÈS la création du match sur le site
+          const battleTime = parseBattleTime(battle.battleTime);
+          console.log('Battle time:', battleTime, '| Match created at:', matchCreatedAt);
+
+          if (battleTime < matchCreatedAt) {
+            console.log('Battle is BEFORE match creation, skipping...');
+            continue; // Chercher un combat plus récent
+          }
+
+          // Match trouvé et valide ! Vérifier le résultat
           const player1Crowns = battle.team[0].crowns;
           const player2Crowns = battle.opponent[0].crowns;
 
-          console.log('Match found! Crowns:', player1Crowns, 'vs', player2Crowns);
+          console.log('Valid match found! Crowns:', player1Crowns, 'vs', player2Crowns);
 
           if (player1Crowns > player2Crowns) {
             return { found: true, winner: player1Tag, loser: player2Tag };
@@ -365,6 +387,14 @@ app.post('/api/verify-match', async (req, res) => {
       return res.status(404).json({ error: 'Match non trouve' });
     }
 
+    // Empêcher la double vérification d'un match déjà complété
+    if (match.status === 'completed') {
+      return res.status(400).json({
+        verified: false,
+        error: 'Ce match a deja ete verifie et complete.'
+      });
+    }
+
     const player1 = await User.findById(match.player1);
     const player2 = await User.findById(match.player2);
 
@@ -373,7 +403,8 @@ app.post('/api/verify-match', async (req, res) => {
     }
 
     // Vérifier le résultat via l'API Clash Royale
-    const result = await verifyMatchResult(player1.playerTag, player2.playerTag);
+    // On passe match.createdAt pour ne considérer que les combats APRÈS la création du match
+    const result = await verifyMatchResult(player1.playerTag, player2.playerTag, match.createdAt);
 
     if (!result.found) {
       return res.status(400).json({
