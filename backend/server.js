@@ -4,6 +4,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const fetch = require('node-fetch');
 
 const User = require('./models/User');
 const Match = require('./models/Match');
@@ -12,17 +13,40 @@ const Match = require('./models/Match');
 const CLASH_API_BASE = 'https://api.clashroyale.com/v1';
 const CLASH_API_KEY = process.env.CLASH_ROYALE_API_KEY;
 
+// Logging de la configuration au démarrage
+console.log('=== Configuration ===');
+console.log('CLASH_API_KEY present:', !!CLASH_API_KEY);
+console.log('FRONTEND_URL:', process.env.FRONTEND_URL);
+console.log('MONGODB_URI present:', !!process.env.MONGODB_URI);
+console.log('===================');
+
 // Fonction pour appeler l'API Clash Royale
 async function fetchClashAPI(endpoint) {
+  if (!CLASH_API_KEY) {
+    throw new Error('CLASH_ROYALE_API_KEY non configure');
+  }
+
+  console.log('Calling Clash API:', CLASH_API_BASE + endpoint);
+
   const response = await fetch(CLASH_API_BASE + endpoint, {
     headers: {
       'Authorization': 'Bearer ' + CLASH_API_KEY,
       'Accept': 'application/json'
     }
   });
+
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error('Clash API Error: ' + response.status + ' - ' + error);
+    const errorText = await response.text();
+    console.error('Clash API Error:', response.status, errorText);
+
+    // Messages d'erreur plus clairs
+    if (response.status === 403) {
+      throw new Error('API Key invalide ou IP non autorisee (403)');
+    } else if (response.status === 404) {
+      throw new Error('Joueur non trouve (404)');
+    } else {
+      throw new Error('Erreur API Clash: ' + response.status);
+    }
   }
   return response.json();
 }
@@ -71,15 +95,28 @@ async function verifyMatchResult(player1Tag, player2Tag) {
 const app = express();
 const server = http.createServer(app);
 
-// Configuration CORS
+// Configuration CORS - plus permissive pour debug
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5173',
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
+console.log('Allowed CORS origins:', allowedOrigins);
+
 app.use(cors({
-  origin: allowedOrigins,
+  origin: function(origin, callback) {
+    // Autoriser les requêtes sans origin (comme les appels API directs)
+    if (!origin) return callback(null, true);
+
+    // Vérifier si l'origin est dans la liste
+    if (allowedOrigins.some(allowed => origin === allowed || origin.startsWith(allowed))) {
+      return callback(null, true);
+    }
+
+    console.log('CORS blocked origin:', origin);
+    callback(new Error('CORS non autorise'));
+  },
   credentials: true
 }));
 
@@ -108,7 +145,7 @@ app.get('/', (req, res) => {
   res.json({ message: 'Clash Arena API is running!' });
 });
 
-// Route pour trouver l'IP du serveur (temporaire)
+// Route pour trouver l'IP du serveur
 app.get('/api/server-ip', async (req, res) => {
   try {
     const response = await fetch('https://api.ipify.org?format=json');
@@ -117,6 +154,27 @@ app.get('/api/server-ip', async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Impossible de recuperer l\'IP' });
   }
+});
+
+// Route de debug pour vérifier la config
+app.get('/api/debug', async (req, res) => {
+  const debugInfo = {
+    hasApiKey: !!CLASH_API_KEY,
+    apiKeyLength: CLASH_API_KEY ? CLASH_API_KEY.length : 0,
+    frontendUrl: process.env.FRONTEND_URL,
+    nodeVersion: process.version
+  };
+
+  // Tester l'API Clash avec un joueur connu
+  try {
+    const testTag = encodeURIComponent('#9QV9U982V');
+    await fetchClashAPI('/players/' + testTag);
+    debugInfo.clashApiStatus = 'OK';
+  } catch (error) {
+    debugInfo.clashApiStatus = 'ERROR: ' + error.message;
+  }
+
+  res.json(debugInfo);
 });
 
 // Vérifier un tag Clash Royale
@@ -128,8 +186,12 @@ app.get('/api/verify-player/:tag', async (req, res) => {
       playerTag = '#' + playerTag;
     }
 
+    console.log('Verifying player tag:', playerTag);
+
     const encodedTag = encodeURIComponent(playerTag);
     const playerData = await fetchClashAPI('/players/' + encodedTag);
+
+    console.log('Player found:', playerData.name);
 
     res.json({
       valid: true,
@@ -139,8 +201,9 @@ app.get('/api/verify-player/:tag', async (req, res) => {
       arena: playerData.arena ? playerData.arena.name : 'Unknown'
     });
   } catch (error) {
-    console.error('Erreur verification tag:', error);
-    res.status(400).json({ valid: false, error: 'Tag Clash Royale invalide ou introuvable' });
+    console.error('Erreur verification tag:', error.message);
+    // Retourner le message d'erreur exact pour le debug
+    res.status(400).json({ valid: false, error: error.message });
   }
 });
 
@@ -170,7 +233,8 @@ app.post('/api/register', async (req, res) => {
       const encodedTag = encodeURIComponent(formattedTag);
       await fetchClashAPI('/players/' + encodedTag);
     } catch (err) {
-      return res.status(400).json({ error: 'Tag Clash Royale invalide ou introuvable' });
+      console.error('Tag validation failed:', err.message);
+      return res.status(400).json({ error: err.message });
     }
 
     const existingUser = await User.findOne({
