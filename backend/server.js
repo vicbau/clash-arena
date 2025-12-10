@@ -75,18 +75,29 @@ async function getPlayerBattleLog(playerTag) {
 // Fonction pour vérifier un match entre deux joueurs
 async function verifyMatchResult(player1Tag, player2Tag) {
   try {
+    console.log('Verifying match between', player1Tag, 'and', player2Tag);
     const battleLog = await getPlayerBattleLog(player1Tag);
+
+    console.log('Battlelog received, number of battles:', battleLog.length);
 
     // Chercher un match récent entre les deux joueurs (dans les 25 dernières batailles)
     for (const battle of battleLog) {
-      // Vérifier si c'est un match 1v1
-      if (battle.type === 'PvP' || battle.type === 'challenge' || battle.type === 'pathOfLegend') {
+      console.log('Checking battle type:', battle.type);
+
+      // Vérifier si c'est un match 1v1 (inclut les matchs amicaux)
+      const validTypes = ['PvP', 'challenge', 'pathOfLegend', 'friendly', 'clanMate', 'clanWarCollectionDay', 'clanWarWarDay'];
+
+      if (validTypes.includes(battle.type) || battle.type.includes('friendly') || battle.type.includes('Friendly')) {
         const opponentTag = battle.opponent && battle.opponent[0] && battle.opponent[0].tag;
+
+        console.log('Opponent tag in battle:', opponentTag, '| Looking for:', player2Tag);
 
         if (opponentTag === player2Tag) {
           // Match trouvé ! Vérifier le résultat
           const player1Crowns = battle.team[0].crowns;
           const player2Crowns = battle.opponent[0].crowns;
+
+          console.log('Match found! Crowns:', player1Crowns, 'vs', player2Crowns);
 
           if (player1Crowns > player2Crowns) {
             return { found: true, winner: player1Tag, loser: player2Tag };
@@ -99,6 +110,7 @@ async function verifyMatchResult(player1Tag, player2Tag) {
       }
     }
 
+    console.log('No matching battle found between players');
     return { found: false };
   } catch (error) {
     console.error('Erreur verification match:', error);
@@ -190,6 +202,32 @@ app.get('/api/debug', async (req, res) => {
   }
 
   res.json(debugInfo);
+});
+
+// Debug: Voir le battlelog d'un joueur
+app.get('/api/battlelog/:tag', async (req, res) => {
+  try {
+    let playerTag = req.params.tag;
+    if (!playerTag.startsWith('#')) {
+      playerTag = '#' + playerTag;
+    }
+
+    const battleLog = await getPlayerBattleLog(playerTag);
+
+    // Retourner un résumé des batailles
+    const summary = battleLog.slice(0, 10).map(battle => ({
+      type: battle.type,
+      time: battle.battleTime,
+      opponent: battle.opponent && battle.opponent[0] ? battle.opponent[0].tag : 'N/A',
+      result: battle.team && battle.team[0] ?
+        (battle.team[0].crowns > (battle.opponent[0]?.crowns || 0) ? 'WIN' :
+         battle.team[0].crowns < (battle.opponent[0]?.crowns || 0) ? 'LOSS' : 'DRAW') : 'N/A'
+    }));
+
+    res.json({ total: battleLog.length, battles: summary });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
 });
 
 // Vérifier un tag Clash Royale
