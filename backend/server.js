@@ -108,6 +108,17 @@ app.get('/', (req, res) => {
   res.json({ message: 'Clash Arena API is running!' });
 });
 
+// Route pour trouver l'IP du serveur (temporaire)
+app.get('/api/server-ip', async (req, res) => {
+  try {
+    const response = await fetch('https://api.ipify.org?format=json');
+    const data = await response.json();
+    res.json({ serverIP: data.ip });
+  } catch (error) {
+    res.status(500).json({ error: 'Impossible de recuperer l\'IP' });
+  }
+});
+
 // Vérifier un tag Clash Royale
 app.get('/api/verify-player/:tag', async (req, res) => {
   try {
