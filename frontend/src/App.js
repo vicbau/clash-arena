@@ -6,7 +6,9 @@ import './App.css';
 function App() {
   const [socket, setSocket] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
-  const [view, setView] = useState('login');
+  const [view, setView] = useState('landing');
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState('login');
   const [gamertag, setGamertag] = useState('');
   const [password, setPassword] = useState('');
   const [playerTag, setPlayerTag] = useState('');
@@ -16,8 +18,8 @@ function App() {
   const [matchId, setMatchId] = useState(null);
   const [searchingMatch, setSearchingMatch] = useState(false);
   const [matchResult, setMatchResult] = useState(null);
-  const [users, setUsers] = useState([]);
-  const [waitingForOpponent, setWaitingForOpponent] = useState(false);
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   useEffect(() => {
     const newSocket = io(API_URL);
@@ -32,6 +34,7 @@ function App() {
       setOpponent(data.opponent);
       setMatchId(data.matchId);
       setSearchingMatch(false);
+      setView('match');
     });
 
     socket.on('match_resolved', (data) => {
@@ -43,16 +46,14 @@ function App() {
         losses: data.won ? prev.losses : prev.losses + 1
       }));
       setView('result');
-      setWaitingForOpponent(false);
       setVerifying(false);
     });
 
     socket.on('match_disputed', () => {
-      alert('Match conteste! Les resultats ne correspondent pas.');
-      setView('home');
+      alert('Match contesté! Les résultats ne correspondent pas.');
+      setView('dashboard');
       setOpponent(null);
       setMatchId(null);
-      setWaitingForOpponent(false);
     });
 
     return () => {
@@ -76,6 +77,12 @@ function App() {
     }
   }, []);
 
+  useEffect(() => {
+    if (currentUser) {
+      fetchLeaderboard();
+    }
+  }, [currentUser]);
+
   const refreshUserData = async (userId) => {
     try {
       const response = await fetch(API_URL + '/api/user/' + userId);
@@ -83,7 +90,7 @@ function App() {
         const user = await response.json();
         setCurrentUser(user);
         localStorage.setItem('clash_arena_user', JSON.stringify(user));
-        setView('home');
+        setView('dashboard');
       } else {
         localStorage.removeItem('clash_arena_user');
       }
@@ -92,7 +99,8 @@ function App() {
     }
   };
 
-  const handleLogin = async () => {
+  const handleLogin = async (e) => {
+    e.preventDefault();
     setError('');
     try {
       const response = await fetch(API_URL + '/api/login', {
@@ -104,9 +112,9 @@ function App() {
       if (response.ok) {
         setCurrentUser(data);
         localStorage.setItem('clash_arena_user', JSON.stringify(data));
-        setView('home');
-        setGamertag('');
-        setPassword('');
+        setView('dashboard');
+        setShowAuthModal(false);
+        resetForm();
       } else {
         setError(data.error);
       }
@@ -115,7 +123,8 @@ function App() {
     }
   };
 
-  const handleRegister = async () => {
+  const handleRegister = async (e) => {
+    e.preventDefault();
     setError('');
     try {
       const response = await fetch(API_URL + '/api/register', {
@@ -127,16 +136,22 @@ function App() {
       if (response.ok) {
         setCurrentUser(data);
         localStorage.setItem('clash_arena_user', JSON.stringify(data));
-        setView('home');
-        setGamertag('');
-        setPassword('');
-        setPlayerTag('');
+        setView('dashboard');
+        setShowAuthModal(false);
+        resetForm();
       } else {
         setError(data.error);
       }
     } catch (err) {
       setError('Erreur de connexion au serveur');
     }
+  };
+
+  const resetForm = () => {
+    setGamertag('');
+    setPassword('');
+    setPlayerTag('');
+    setError('');
   };
 
   const verifyMatch = async () => {
@@ -150,10 +165,8 @@ function App() {
         body: JSON.stringify({ matchId, userId: currentUser.id })
       });
       const data = await response.json();
-      if (response.ok && data.verified) {
-        // Le match_resolved sera reçu via socket
-      } else {
-        setError(data.error || 'Impossible de verifier le match');
+      if (!response.ok || !data.verified) {
+        setError(data.error || 'Impossible de vérifier le match');
         setVerifying(false);
       }
     } catch (err) {
@@ -168,13 +181,13 @@ function App() {
       socket.emit('leave_queue', currentUser.id);
     }
     setCurrentUser(null);
-    setView('login');
+    setView('landing');
   };
 
   const findMatch = () => {
     if (!socket || !currentUser) return;
     setSearchingMatch(true);
-    setView('matchmaking');
+    setView('searching');
     socket.emit('join_queue', currentUser.id);
   };
 
@@ -182,255 +195,375 @@ function App() {
     if (!socket || !currentUser) return;
     socket.emit('leave_queue', currentUser.id);
     setSearchingMatch(false);
-    setView('home');
-  };
-
-  const declareResult = (won) => {
-    if (!socket || !matchId || !currentUser) return;
-    socket.emit('declare_result', {
-      matchId: matchId,
-      userId: currentUser.id,
-      result: won ? 'win' : 'loss'
-    });
-    setWaitingForOpponent(true);
+    setView('dashboard');
   };
 
   const fetchLeaderboard = async () => {
     try {
       const response = await fetch(API_URL + '/api/leaderboard');
       const data = await response.json();
-      setUsers(data);
+      setLeaderboard(data);
     } catch (err) {
       console.error('Erreur leaderboard:', err);
     }
   };
 
-  const getTrophyRank = (trophies) => {
-    if (trophies >= 2000) return { name: 'Champion', color: '#FFD700', icon: '👑' };
-    if (trophies >= 1500) return { name: 'Master', color: '#E040FB', icon: '💎' };
-    if (trophies >= 1200) return { name: 'Challenger', color: '#FF5722', icon: '🔥' };
-    if (trophies >= 1000) return { name: 'Knight', color: '#2196F3', icon: '⚔️' };
-    if (trophies >= 800) return { name: 'Builder', color: '#4CAF50', icon: '🏰' };
-    return { name: 'Recruit', color: '#9E9E9E', icon: '🛡️' };
+  const getRank = (trophies) => {
+    if (trophies >= 2000) return { name: 'Champion', color: '#ffd700', icon: '👑' };
+    if (trophies >= 1500) return { name: 'Master', color: '#e040fb', icon: '💎' };
+    if (trophies >= 1200) return { name: 'Challenger', color: '#ff5722', icon: '🔥' };
+    if (trophies >= 1000) return { name: 'Knight', color: '#2196f3', icon: '⚔️' };
+    if (trophies >= 800) return { name: 'Builder', color: '#4caf50', icon: '🏰' };
+    return { name: 'Recruit', color: '#9e9e9e', icon: '🛡️' };
   };
 
-  const renderLogin = () => (
-    <div className="auth-container">
-      <div className="logo">
-        <span className="logo-icon">⚔️</span>
-        <h1 className="logo-text">CLASH ARENA</h1>
-        <p className="logo-subtext">Matchmaking Ladder</p>
-      </div>
-      <div className="auth-card">
-        <h2 className="auth-title">Connexion</h2>
-        <div className="input-group">
-          <label className="label">Gamertag</label>
-          <input type="text" value={gamertag} onChange={(e) => setGamertag(e.target.value)} placeholder="Ton pseudo" className="input" />
-        </div>
-        <div className="input-group">
-          <label className="label">Mot de passe</label>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="input" />
-        </div>
-        {error && <p className="error">{error}</p>}
-        <button onClick={handleLogin} className="primary-button">ENTRER</button>
-        <p className="switch-auth">Pas de compte ? <span onClick={() => { setView('register'); setError(''); }} className="link">Creer un compte</span></p>
-      </div>
-    </div>
-  );
+  const openAuth = (mode) => {
+    setAuthMode(mode);
+    setShowAuthModal(true);
+    resetForm();
+  };
 
-  const renderRegister = () => (
-    <div className="auth-container">
-      <div className="logo">
-        <span className="logo-icon">⚔️</span>
-        <h1 className="logo-text">CLASH ARENA</h1>
-        <p className="logo-subtext">Rejoins le combat</p>
-      </div>
-      <div className="auth-card">
-        <h2 className="auth-title">Inscription</h2>
-        <div className="input-group">
-          <label className="label">Gamertag</label>
-          <input type="text" value={gamertag} onChange={(e) => setGamertag(e.target.value)} placeholder="Choisis ton pseudo" className="input" />
+  // Landing Page
+  const renderLanding = () => (
+    <div className="landing">
+      <nav className="navbar">
+        <div className="nav-brand">
+          <span className="nav-logo">⚔️</span>
+          <span className="nav-title">CLASH ARENA</span>
         </div>
-        <div className="input-group">
-          <label className="label">Tag Clash Royale</label>
-          <input type="text" value={playerTag} onChange={(e) => setPlayerTag(e.target.value)} placeholder="#ABC123XYZ" className="input" />
-          <p className="input-help">Trouve ton tag dans Clash Royale : Profil → sous ton nom</p>
+        <div className="nav-actions">
+          <button className="btn-ghost" onClick={() => openAuth('login')}>Sign In</button>
+          <button className="btn-primary" onClick={() => openAuth('register')}>Sign Up</button>
         </div>
-        <div className="input-group">
-          <label className="label">Mot de passe</label>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="input" />
-        </div>
-        {error && <p className="error">{error}</p>}
-        <button onClick={handleRegister} className="primary-button">CREER MON COMPTE</button>
-        <p className="switch-auth">Deja un compte ? <span onClick={() => { setView('login'); setError(''); }} className="link">Se connecter</span></p>
-      </div>
-    </div>
-  );
+      </nav>
 
-  const renderHome = () => {
-    if (!currentUser) return null;
-    const rank = getTrophyRank(currentUser.trophies);
-    return (
-      <div className="home-container">
-        <div className="header">
-          <div className="header-left">
-            <span className="header-icon">⚔️</span>
-            <span className="header-title">CLASH ARENA</span>
+      <main className="hero">
+        <div className="hero-content">
+          <h1 className="hero-title">
+            Compete. <span className="highlight">Climb.</span> Conquer.
+          </h1>
+          <p className="hero-subtitle">
+            Le ladder compétitif pour Clash Royale. Affrontez des joueurs de votre niveau et grimpez dans le classement.
+          </p>
+          <div className="hero-actions">
+            <button className="btn-large" onClick={() => openAuth('register')}>
+              Commencer maintenant
+            </button>
           </div>
-          <button onClick={handleLogout} className="logout-button">Deconnexion</button>
+          <div className="hero-stats">
+            <div className="stat">
+              <span className="stat-number">{leaderboard.length}+</span>
+              <span className="stat-label">Joueurs</span>
+            </div>
+            <div className="stat">
+              <span className="stat-number">∞</span>
+              <span className="stat-label">Matchs</span>
+            </div>
+            <div className="stat">
+              <span className="stat-number">24/7</span>
+              <span className="stat-label">Disponible</span>
+            </div>
+          </div>
         </div>
-        <div className="profile-card">
-          <div className="profile-header">
-            <div className="avatar">{currentUser.gamertag.charAt(0).toUpperCase()}</div>
-            <div>
-              <h2 className="profile-name">{currentUser.gamertag}</h2>
-              <div className="rank-badge">
-                <span>{rank.icon}</span>
-                <span style={{ color: rank.color }}>{rank.name}</span>
+        <div className="hero-visual">
+          <div className="hero-card">
+            <div className="card-glow"></div>
+            <span className="hero-icon">🏆</span>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+
+  // Auth Modal
+  const renderAuthModal = () => (
+    <div className="modal-overlay" onClick={() => setShowAuthModal(false)}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <button className="modal-close" onClick={() => setShowAuthModal(false)}>×</button>
+
+        <div className="modal-header">
+          <h2>{authMode === 'login' ? 'Connexion' : 'Créer un compte'}</h2>
+          <p>{authMode === 'login' ? 'Content de vous revoir!' : 'Rejoignez la compétition'}</p>
+        </div>
+
+        <form onSubmit={authMode === 'login' ? handleLogin : handleRegister} className="auth-form">
+          <div className="form-group">
+            <label>Gamertag</label>
+            <input
+              type="text"
+              value={gamertag}
+              onChange={(e) => setGamertag(e.target.value)}
+              placeholder="Votre pseudo"
+              required
+            />
+          </div>
+
+          {authMode === 'register' && (
+            <div className="form-group">
+              <label>Tag Clash Royale</label>
+              <input
+                type="text"
+                value={playerTag}
+                onChange={(e) => setPlayerTag(e.target.value)}
+                placeholder="Ex: 9GCV09PUJ (sans #)"
+                required
+              />
+              <span className="form-hint">Trouvez votre tag dans Clash Royale : Profil → sous votre nom</span>
+            </div>
+          )}
+
+          <div className="form-group">
+            <label>Mot de passe</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+            />
+          </div>
+
+          {error && <div className="form-error">{error}</div>}
+
+          <button type="submit" className="btn-submit">
+            {authMode === 'login' ? 'Se connecter' : 'Créer mon compte'}
+          </button>
+        </form>
+
+        <div className="modal-footer">
+          {authMode === 'login' ? (
+            <p>Pas de compte? <button className="btn-link" onClick={() => { setAuthMode('register'); resetForm(); }}>Créer un compte</button></p>
+          ) : (
+            <p>Déjà un compte? <button className="btn-link" onClick={() => { setAuthMode('login'); resetForm(); }}>Se connecter</button></p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  // Dashboard
+  const renderDashboard = () => {
+    if (!currentUser) return null;
+    const rank = getRank(currentUser.trophies);
+    const userRankPosition = leaderboard.findIndex(u => u.id === currentUser.id) + 1;
+
+    return (
+      <div className="dashboard">
+        <nav className="navbar navbar-dark">
+          <div className="nav-brand">
+            <span className="nav-logo">⚔️</span>
+            <span className="nav-title">CLASH ARENA</span>
+          </div>
+          <div className="nav-actions">
+            <span className="nav-user">{currentUser.gamertag}</span>
+            <button className="btn-ghost" onClick={handleLogout}>Déconnexion</button>
+          </div>
+        </nav>
+
+        <main className="dashboard-content">
+          <div className="dashboard-grid">
+            {/* Profile Card */}
+            <div className="card profile-card">
+              <div className="profile-header">
+                <div className="profile-avatar">
+                  {currentUser.gamertag.charAt(0).toUpperCase()}
+                </div>
+                <div className="profile-info">
+                  <h2>{currentUser.gamertag}</h2>
+                  <div className="profile-rank" style={{ color: rank.color }}>
+                    <span>{rank.icon}</span>
+                    <span>{rank.name}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="profile-stats">
+                <div className="profile-stat">
+                  <span className="profile-stat-value">{currentUser.trophies}</span>
+                  <span className="profile-stat-label">Trophées</span>
+                </div>
+                <div className="profile-stat">
+                  <span className="profile-stat-value">{currentUser.wins}</span>
+                  <span className="profile-stat-label">Victoires</span>
+                </div>
+                <div className="profile-stat">
+                  <span className="profile-stat-value">{currentUser.losses}</span>
+                  <span className="profile-stat-label">Défaites</span>
+                </div>
+                <div className="profile-stat">
+                  <span className="profile-stat-value">
+                    {currentUser.wins + currentUser.losses > 0
+                      ? Math.round((currentUser.wins / (currentUser.wins + currentUser.losses)) * 100)
+                      : 0}%
+                  </span>
+                  <span className="profile-stat-label">Winrate</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Find Match Card */}
+            <div className="card action-card">
+              <div className="action-content">
+                <span className="action-icon">⚔️</span>
+                <h3>Prêt pour le combat?</h3>
+                <p>Trouvez un adversaire de votre niveau et grimpez dans le classement</p>
+                <button className="btn-action" onClick={findMatch}>
+                  Trouver un match
+                </button>
+              </div>
+            </div>
+
+            {/* Rank Card */}
+            <div className="card rank-card">
+              <h3>Votre Classement</h3>
+              <div className="rank-display">
+                <span className="rank-position">#{userRankPosition || '?'}</span>
+                <span className="rank-total">sur {leaderboard.length} joueurs</span>
+              </div>
+              <div className="rank-progress">
+                <div className="rank-bar">
+                  <div
+                    className="rank-fill"
+                    style={{
+                      width: `${Math.min((currentUser.trophies / 2000) * 100, 100)}%`,
+                      backgroundColor: rank.color
+                    }}
+                  ></div>
+                </div>
+                <span className="rank-next">
+                  {currentUser.trophies < 2000
+                    ? `${2000 - currentUser.trophies} trophées avant Champion`
+                    : 'Rang maximum atteint!'}
+                </span>
+              </div>
+            </div>
+
+            {/* Leaderboard Card */}
+            <div className="card leaderboard-card">
+              <div className="leaderboard-header">
+                <h3>Classement Global</h3>
+              </div>
+              <div className="leaderboard-list">
+                {leaderboard.slice(0, 10).map((user, index) => {
+                  const userRank = getRank(user.trophies);
+                  const isCurrentUser = user.id === currentUser?.id;
+                  return (
+                    <div key={user.id} className={`leaderboard-item ${isCurrentUser ? 'current' : ''}`}>
+                      <span className="lb-position">
+                        {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
+                      </span>
+                      <span className="lb-name">{user.gamertag}</span>
+                      <span className="lb-rank" style={{ color: userRank.color }}>{userRank.icon}</span>
+                      <span className="lb-trophies">{user.trophies}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
-          <div className="stats-row">
-            <div className="stat-box">
-              <span className="stat-icon">🏆</span>
-              <span className="stat-value">{currentUser.trophies}</span>
-              <span className="stat-label">Trophees</span>
-            </div>
-            <div className="stat-box">
-              <span className="stat-icon">✅</span>
-              <span className="stat-value">{currentUser.wins}</span>
-              <span className="stat-label">Victoires</span>
-            </div>
-            <div className="stat-box">
-              <span className="stat-icon">❌</span>
-              <span className="stat-value">{currentUser.losses}</span>
-              <span className="stat-label">Defaites</span>
-            </div>
-          </div>
-        </div>
-        <div className="menu-buttons">
-          <button onClick={findMatch} className="play-button">⚔️ TROUVER UN MATCH</button>
-          <button onClick={() => { setView('ladder'); fetchLeaderboard(); }} className="ladder-button">🏆 CLASSEMENT</button>
-        </div>
+        </main>
       </div>
     );
   };
 
-  const renderMatchmaking = () => (
-    <div className="matchmaking-container">
-      {searchingMatch && !opponent ? (
-        <div className="searching-box">
-          <div className="searching-spinner"></div>
-          <h2 className="searching-title">Recherche...</h2>
-          <p className="searching-text">Recherche d'un adversaire</p>
-          <button onClick={cancelSearch} className="cancel-button">Annuler</button>
-        </div>
-      ) : opponent ? (
-        <div className="match-found-box">
-          {verifying ? (
-            <div className="waiting-box">
-              <div className="searching-spinner"></div>
-              <h2 className="searching-title">Verification...</h2>
-              <p className="waiting-text">Verification du resultat via Clash Royale API</p>
-            </div>
-          ) : (
-            <>
-              <h2 className="match-found-title">ADVERSAIRE TROUVE !</h2>
-              <div className="vs-container">
-                <div className="player-card">
-                  <div className="player-avatar">{currentUser.gamertag.charAt(0).toUpperCase()}</div>
-                  <p className="player-name">{currentUser.gamertag}</p>
-                  <p className="player-trophies">🏆 {currentUser.trophies}</p>
-                </div>
-                <div className="vs-text">VS</div>
-                <div className="player-card">
-                  <div className="player-avatar opponent">{opponent.gamertag.charAt(0).toUpperCase()}</div>
-                  <p className="player-name">{opponent.gamertag}</p>
-                  <p className="player-trophies">🏆 {opponent.trophies}</p>
-                </div>
-              </div>
-              <div className="match-instructions-box">
-                <p className="match-instructions">📱 Jouez votre match dans Clash Royale</p>
-                <p className="match-instructions-sub">Ajoutez-vous en ami et faites un match amical,<br />puis cliquez sur le bouton ci-dessous.</p>
-              </div>
-              {error && <p className="error">{error}</p>}
-              <button onClick={verifyMatch} className="verify-button">🔍 VERIFIER LE RESULTAT</button>
-              <button onClick={() => { setView('home'); setOpponent(null); setMatchId(null); setError(''); }} className="cancel-button">Annuler</button>
-            </>
-          )}
-        </div>
-      ) : null}
+  // Searching for Match
+  const renderSearching = () => (
+    <div className="fullscreen-view">
+      <div className="searching-container">
+        <div className="searching-spinner"></div>
+        <h2>Recherche en cours...</h2>
+        <p>Recherche d'un adversaire de votre niveau</p>
+        <button className="btn-cancel" onClick={cancelSearch}>Annuler</button>
+      </div>
     </div>
   );
 
+  // Match View
+  const renderMatch = () => (
+    <div className="fullscreen-view">
+      <div className="match-container">
+        {verifying ? (
+          <div className="verifying">
+            <div className="searching-spinner"></div>
+            <h2>Vérification...</h2>
+            <p>Recherche du résultat via l'API Clash Royale</p>
+          </div>
+        ) : (
+          <>
+            <h2 className="match-title">Adversaire trouvé!</h2>
+
+            <div className="match-versus">
+              <div className="match-player">
+                <div className="match-avatar">{currentUser?.gamertag.charAt(0).toUpperCase()}</div>
+                <span className="match-name">{currentUser?.gamertag}</span>
+                <span className="match-trophies">🏆 {currentUser?.trophies}</span>
+              </div>
+
+              <span className="match-vs">VS</span>
+
+              <div className="match-player">
+                <div className="match-avatar opponent">{opponent?.gamertag.charAt(0).toUpperCase()}</div>
+                <span className="match-name">{opponent?.gamertag}</span>
+                <span className="match-trophies">🏆 {opponent?.trophies}</span>
+              </div>
+            </div>
+
+            <div className="match-instructions">
+              <p>📱 Jouez votre match dans Clash Royale</p>
+              <p className="match-hint">Ajoutez-vous en ami et faites un match amical</p>
+            </div>
+
+            {error && <div className="match-error">{error}</div>}
+
+            <div className="match-actions">
+              <button className="btn-verify" onClick={verifyMatch}>
+                Vérifier le résultat
+              </button>
+              <button className="btn-cancel" onClick={() => { setView('dashboard'); setOpponent(null); setMatchId(null); setError(''); }}>
+                Annuler
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+
+  // Result View
   const renderResult = () => {
     const isVictory = matchResult === 'victory';
     return (
-      <div className="result-container">
-        <div className={`result-box ${isVictory ? 'victory' : 'defeat'}`}>
-          <div className={`result-icon ${isVictory ? 'victory' : 'defeat'}`}>{isVictory ? '🏆' : '💔'}</div>
-          <h1 className={`result-title ${isVictory ? 'victory' : 'defeat'}`}>{isVictory ? 'VICTOIRE !' : 'DEFAITE'}</h1>
-          <div className={`trophy-change ${isVictory ? 'victory' : 'defeat'}`}>
-            <span>{isVictory ? '+30' : '-30'}</span>
-            <span>🏆</span>
+      <div className="fullscreen-view">
+        <div className={`result-container ${isVictory ? 'victory' : 'defeat'}`}>
+          <span className="result-icon">{isVictory ? '🏆' : '💔'}</span>
+          <h1 className="result-title">{isVictory ? 'VICTOIRE!' : 'DÉFAITE'}</h1>
+          <div className="result-trophies">
+            <span className={isVictory ? 'positive' : 'negative'}>
+              {isVictory ? '+30' : '-30'} 🏆
+            </span>
           </div>
-          <p className="new-trophies">Nouveau total : <strong>{currentUser?.trophies}</strong> trophees</p>
-          <button onClick={() => { setView('home'); setOpponent(null); setMatchId(null); setMatchResult(null); setVerifying(false); setError(''); }} className="continue-button">CONTINUER</button>
-        </div>
-      </div>
-    );
-  };
-
-  const renderLadder = () => {
-    const currentUserRank = users.findIndex(u => u.id === currentUser?.id) + 1;
-    return (
-      <div className="ladder-container">
-        <div className="ladder-header">
-          <button onClick={() => setView('home')} className="back-button">← Retour</button>
-          <h1 className="ladder-title">🏆 CLASSEMENT</h1>
-        </div>
-        {currentUser && (
-          <div className="my-rank-card">
-            <span>Ta position :</span>
-            <span className="my-rank-number">#{currentUserRank || '?'}</span>
-            <span className="my-rank-trophies">🏆 {currentUser.trophies}</span>
-          </div>
-        )}
-        <div className="ladder-list">
-          {users.map((user, index) => {
-            const rank = getTrophyRank(user.trophies);
-            const isCurrentUser = user.id === currentUser?.id;
-            const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : null;
-            return (
-              <div key={user.id} className={`ladder-item ${isCurrentUser ? 'current-user' : ''}`}>
-                <div className="ladder-rank">{medal || `#${index + 1}`}</div>
-                <div className="ladder-player-info">
-                  <span className="ladder-player-name">{user.gamertag}{isCurrentUser && <span className="you-badge">(toi)</span>}</span>
-                  <span style={{ fontSize: '0.8rem', color: rank.color }}>{rank.icon} {rank.name}</span>
-                </div>
-                <div className="ladder-stats">
-                  <span className="ladder-win-loss">{user.wins}V / {user.losses}D</span>
-                  <span className="ladder-trophies">🏆 {user.trophies}</span>
-                </div>
-              </div>
-            );
-          })}
+          <p className="result-total">Total: {currentUser?.trophies} trophées</p>
+          <button className="btn-continue" onClick={() => {
+            setView('dashboard');
+            setOpponent(null);
+            setMatchId(null);
+            setMatchResult(null);
+            setError('');
+          }}>
+            Continuer
+          </button>
         </div>
       </div>
     );
   };
 
   return (
-    <div className="container">
-      <div className="background-overlay"></div>
-      <div className="content">
-        {view === 'login' && renderLogin()}
-        {view === 'register' && renderRegister()}
-        {view === 'home' && renderHome()}
-        {view === 'matchmaking' && renderMatchmaking()}
-        {view === 'result' && renderResult()}
-        {view === 'ladder' && renderLadder()}
-      </div>
+    <div className="app">
+      {view === 'landing' && renderLanding()}
+      {view === 'dashboard' && renderDashboard()}
+      {view === 'searching' && renderSearching()}
+      {view === 'match' && renderMatch()}
+      {view === 'result' && renderResult()}
+      {showAuthModal && renderAuthModal()}
     </div>
   );
 }
