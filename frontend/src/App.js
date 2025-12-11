@@ -471,15 +471,152 @@ function App() {
   };
 
   // Dashboard - Track Tab
+  const [chartHover, setChartHover] = useState({ show: false, x: 0, y: 0, value: 0, index: 0 });
+
   const renderTrackTab = () => {
     const rank = getRank(currentUser.trophies);
     const totalGames = currentUser.wins + currentUser.losses;
     const winRate = totalGames > 0 ? Math.round((currentUser.wins / totalGames) * 100) : 0;
     const userRankPosition = leaderboard.findIndex(u => u.id === currentUser.id) + 1;
+    const trophiesWon = currentUser.wins * 30;
+    const trophiesLost = currentUser.losses * 30;
+    const netTrophies = trophiesWon - trophiesLost;
 
-    // Calculate estimated stats
-    const avgTrophiesPerWin = 30;
-    const peakTrophies = currentUser.trophies + (currentUser.losses * avgTrophiesPerWin);
+    // Generate trophy progression data based on wins/losses
+    const generateProgressionData = () => {
+      const data = [];
+      const startTrophies = 1000; // Starting trophies
+      let currentTrophies = startTrophies;
+      const totalMatches = currentUser.wins + currentUser.losses;
+
+      if (totalMatches === 0) {
+        return [{ match: 0, trophies: currentUser.trophies }];
+      }
+
+      // Simulate match history based on win/loss ratio
+      const winRatio = currentUser.wins / totalMatches;
+
+      for (let i = 0; i <= totalMatches; i++) {
+        data.push({ match: i, trophies: currentTrophies });
+        if (i < totalMatches) {
+          // Determine if this match was a win based on probability
+          const isWin = Math.random() < winRatio;
+          currentTrophies += isWin ? 30 : -30;
+          currentTrophies = Math.max(0, currentTrophies); // Don't go below 0
+        }
+      }
+
+      // Adjust the last point to match current trophies
+      if (data.length > 0) {
+        data[data.length - 1].trophies = currentUser.trophies;
+      }
+
+      return data;
+    };
+
+    const progressionData = generateProgressionData();
+    const maxTrophies = Math.max(...progressionData.map(d => d.trophies), currentUser.trophies + 100);
+    const minTrophies = Math.min(...progressionData.map(d => d.trophies), currentUser.trophies - 100);
+    const trophyRange = maxTrophies - minTrophies || 100;
+
+    // Generate SVG path for the curve
+    const generatePath = () => {
+      if (progressionData.length < 2) return '';
+
+      const width = 100;
+      const height = 100;
+      const padding = 5;
+
+      const points = progressionData.map((d, i) => {
+        const x = padding + ((width - 2 * padding) * i / (progressionData.length - 1));
+        const y = height - padding - ((height - 2 * padding) * (d.trophies - minTrophies) / trophyRange);
+        return { x, y };
+      });
+
+      // Create smooth curve
+      let path = `M ${points[0].x} ${points[0].y}`;
+      for (let i = 1; i < points.length; i++) {
+        const prev = points[i - 1];
+        const curr = points[i];
+        const cpx = (prev.x + curr.x) / 2;
+        path += ` Q ${prev.x + (curr.x - prev.x) / 3} ${prev.y}, ${cpx} ${(prev.y + curr.y) / 2}`;
+        path += ` Q ${curr.x - (curr.x - prev.x) / 3} ${curr.y}, ${curr.x} ${curr.y}`;
+      }
+
+      return path;
+    };
+
+    // Generate area path (for fill under curve)
+    const generateAreaPath = () => {
+      if (progressionData.length < 2) return '';
+
+      const width = 100;
+      const height = 100;
+      const padding = 5;
+
+      const points = progressionData.map((d, i) => {
+        const x = padding + ((width - 2 * padding) * i / (progressionData.length - 1));
+        const y = height - padding - ((height - 2 * padding) * (d.trophies - minTrophies) / trophyRange);
+        return { x, y };
+      });
+
+      let path = `M ${points[0].x} ${height - padding}`;
+      path += ` L ${points[0].x} ${points[0].y}`;
+
+      for (let i = 1; i < points.length; i++) {
+        const prev = points[i - 1];
+        const curr = points[i];
+        const cpx = (prev.x + curr.x) / 2;
+        path += ` Q ${prev.x + (curr.x - prev.x) / 3} ${prev.y}, ${cpx} ${(prev.y + curr.y) / 2}`;
+        path += ` Q ${curr.x - (curr.x - prev.x) / 3} ${curr.y}, ${curr.x} ${curr.y}`;
+      }
+
+      path += ` L ${points[points.length - 1].x} ${height - padding}`;
+      path += ' Z';
+
+      return path;
+    };
+
+    const handleChartHover = (e) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const relativeX = x / rect.width;
+      const index = Math.min(Math.round(relativeX * (progressionData.length - 1)), progressionData.length - 1);
+      const dataPoint = progressionData[index];
+
+      if (dataPoint) {
+        const padding = 5;
+        const yPos = 100 - padding - ((100 - 2 * padding) * (dataPoint.trophies - minTrophies) / trophyRange);
+        setChartHover({
+          show: true,
+          x: (index / (progressionData.length - 1)) * 100,
+          y: yPos,
+          value: dataPoint.trophies,
+          index: index
+        });
+      }
+    };
+
+    const handleChartLeave = () => {
+      setChartHover({ show: false, x: 0, y: 0, value: 0, index: 0 });
+    };
+
+    // Y-axis labels
+    const yAxisLabels = [
+      { value: maxTrophies, pos: 5 },
+      { value: Math.round((maxTrophies + minTrophies) / 2), pos: 50 },
+      { value: minTrophies, pos: 95 }
+    ];
+
+    // X-axis labels
+    const xAxisLabels = [];
+    const step = Math.max(1, Math.floor(progressionData.length / 5));
+    for (let i = 0; i < progressionData.length; i += step) {
+      xAxisLabels.push({ value: i, pos: (i / (progressionData.length - 1)) * 100 });
+    }
+    if (progressionData.length > 1 && xAxisLabels[xAxisLabels.length - 1]?.value !== progressionData.length - 1) {
+      xAxisLabels.push({ value: progressionData.length - 1, pos: 100 });
+    }
 
     return (
       <div className="tab-content">
@@ -492,7 +629,7 @@ function App() {
                 <div className="stat-header">
                   <span className={`stat-value ${winRate >= 50 ? 'positive' : 'negative'}`}>{winRate}%</span>
                   <span className={`stat-change ${winRate >= 50 ? 'up' : 'down'}`}>
-                    {winRate >= 50 ? '↑' : '↓'} {Math.abs(winRate - 50)}
+                    {winRate >= 50 ? '↑' : '↓'} {Math.abs(winRate - 50)}%
                   </span>
                 </div>
                 <span className="stat-name">Win Rate</span>
@@ -533,48 +670,96 @@ function App() {
             </div>
           </section>
 
-          {/* Other Statistics */}
-          <section className="track-section">
-            <h2 className="section-title">Statistics</h2>
-            <div className="other-stats">
-              <div className="other-stat">
-                <span className="other-stat-value">{currentUser.wins}</span>
-                <span className="other-stat-label">Total Wins</span>
-              </div>
-              <div className="other-stat">
-                <span className="other-stat-value">{currentUser.losses}</span>
-                <span className="other-stat-label">Total Losses</span>
-              </div>
-              <div className="other-stat">
-                <span className="other-stat-value">{currentUser.wins * 30}</span>
-                <span className="other-stat-label">Trophies Won</span>
-              </div>
-              <div className="other-stat">
-                <span className="other-stat-value">{currentUser.losses * 30}</span>
-                <span className="other-stat-label">Trophies Lost</span>
-              </div>
-            </div>
-          </section>
-
           {/* Progress Section */}
           <section className="track-section">
             <h2 className="section-title">Progress</h2>
             <div className="progress-container">
-              <div className="progress-chart">
-                <div className="progress-visual">
-                  <div className="progress-line">
-                    {[...Array(Math.min(totalGames, 20))].map((_, i) => (
-                      <div key={i} className="progress-point" style={{
-                        left: `${(i / 19) * 100}%`,
-                        bottom: `${30 + Math.random() * 40}%`
-                      }}></div>
-                    ))}
-                  </div>
+              <div className="progress-chart-wrapper">
+                {/* Y-axis labels */}
+                <div className="chart-y-axis">
+                  {yAxisLabels.map((label, i) => (
+                    <span key={i} className="axis-label" style={{ top: `${label.pos}%` }}>{label.value}</span>
+                  ))}
+                </div>
+
+                {/* Chart */}
+                <div
+                  className="progress-chart"
+                  onMouseMove={handleChartHover}
+                  onMouseLeave={handleChartLeave}
+                >
+                  <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="chart-svg">
+                    {/* Grid lines */}
+                    <line x1="5" y1="5" x2="5" y2="95" stroke="#2a2a3a" strokeWidth="0.3"/>
+                    <line x1="5" y1="95" x2="95" y2="95" stroke="#2a2a3a" strokeWidth="0.3"/>
+                    <line x1="5" y1="50" x2="95" y2="50" stroke="#2a2a3a" strokeWidth="0.2" strokeDasharray="2"/>
+
+                    {/* Area fill */}
+                    <defs>
+                      <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#f97316" stopOpacity="0.4"/>
+                        <stop offset="100%" stopColor="#f97316" stopOpacity="0.05"/>
+                      </linearGradient>
+                    </defs>
+                    <path d={generateAreaPath()} fill="url(#areaGradient)"/>
+
+                    {/* Main curve */}
+                    <path d={generatePath()} fill="none" stroke="#f97316" strokeWidth="0.8"/>
+
+                    {/* Hover elements */}
+                    {chartHover.show && (
+                      <>
+                        {/* Vertical line */}
+                        <line
+                          x1={5 + (chartHover.x / 100) * 90}
+                          y1="5"
+                          x2={5 + (chartHover.x / 100) * 90}
+                          y2="95"
+                          stroke="#fff"
+                          strokeWidth="0.3"
+                          strokeDasharray="1"
+                        />
+                        {/* Point */}
+                        <circle
+                          cx={5 + (chartHover.x / 100) * 90}
+                          cy={chartHover.y}
+                          r="1.5"
+                          fill="#fff"
+                          stroke="#f97316"
+                          strokeWidth="0.5"
+                        />
+                      </>
+                    )}
+                  </svg>
+
+                  {/* Tooltip */}
+                  {chartHover.show && (
+                    <div
+                      className="chart-tooltip"
+                      style={{
+                        left: `${5 + (chartHover.x / 100) * 90}%`,
+                        top: `${chartHover.y}%`
+                      }}
+                    >
+                      <span className="tooltip-value">{chartHover.value}</span>
+                      <span className="tooltip-match">{chartHover.index}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* X-axis labels */}
+                <div className="chart-x-axis">
+                  {xAxisLabels.map((label, i) => (
+                    <span key={i} className="axis-label" style={{ left: `${5 + (label.pos / 100) * 90}%` }}>{label.value}</span>
+                  ))}
                 </div>
               </div>
+
               <div className="progress-stats">
                 <div className="progress-stat">
-                  <span className="progress-value positive">+{currentUser.wins * 30 - currentUser.losses * 30}</span>
+                  <span className={`progress-value ${netTrophies >= 0 ? 'positive' : 'negative'}`}>
+                    {netTrophies >= 0 ? '+' : ''}{netTrophies}
+                  </span>
                   <span className="progress-label">Net Trophies</span>
                 </div>
                 <div className="progress-stat">
@@ -582,12 +767,12 @@ function App() {
                   <span className="progress-label">Current</span>
                 </div>
                 <div className="progress-stat">
-                  <span className="progress-value">{winRate}%</span>
-                  <span className="progress-label">Win Rate</span>
+                  <span className="progress-value positive">+{trophiesWon}</span>
+                  <span className="progress-label">Trophies Won</span>
                 </div>
                 <div className="progress-stat">
-                  <span className="progress-value">{totalGames}</span>
-                  <span className="progress-label">Matches</span>
+                  <span className="progress-value negative">-{trophiesLost}</span>
+                  <span className="progress-label">Trophies Lost</span>
                 </div>
                 <div className="progress-stat wins-losses">
                   <span className="wins-indicator">W {currentUser.wins}</span>
