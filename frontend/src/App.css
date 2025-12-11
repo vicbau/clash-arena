@@ -672,9 +672,10 @@ body {
    PLAY TAB
    ============================================ */
 
-.play-grid {
+.play-grid-new {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
   gap: 1.5rem;
 }
 
@@ -690,34 +691,46 @@ body {
   border-color: rgba(99, 102, 241, 0.3);
 }
 
-.quick-stats {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.quick-stats-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.profile-avatar-large {
-  width: 64px;
-  height: 64px;
-  background: linear-gradient(135deg, var(--accent), #8b5cf6);
-  border-radius: 16px;
+/* Main Action Card */
+.action-card-main {
+  grid-row: 1 / 3;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
-  font-weight: 700;
+  background: linear-gradient(135deg, var(--bg-card), rgba(99, 102, 241, 0.15));
+  min-height: 280px;
 }
 
-.quick-stats-header h2 {
+/* Profile Card Play */
+.profile-card-play {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.profile-play-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.profile-play-info h2 {
   font-size: 1.25rem;
   font-weight: 600;
   margin-bottom: 0.25rem;
+}
+
+.profile-avatar-large {
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, var(--accent), #8b5cf6);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  font-weight: 700;
 }
 
 .profile-rank {
@@ -725,41 +738,175 @@ body {
   align-items: center;
   gap: 0.5rem;
   font-weight: 600;
+  font-size: 0.9rem;
 }
 
-.quick-stats-grid {
+.profile-play-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
-.quick-stat {
+.profile-play-stat {
   text-align: center;
-  padding: 1rem;
+  padding: 0.75rem;
   background: var(--bg-secondary);
   border-radius: var(--radius);
 }
 
-.quick-stat-value {
+.profile-play-value {
   display: block;
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   font-weight: 700;
   color: var(--text-primary);
 }
 
-.quick-stat-label {
+.profile-play-label {
   display: block;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--text-muted);
   margin-top: 0.25rem;
 }
 
-.action-card-large {
+/* Preview Cards */
+.preview-card {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.preview-header {
   display: flex;
   align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.preview-icon {
+  font-size: 1.25rem;
+}
+
+.preview-header h3 {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.preview-content {
+  flex: 1;
+}
+
+.preview-rank {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.preview-rank-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.preview-rank-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--accent), #a78bfa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.preview-top3 {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.preview-top-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.6rem;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+}
+
+.preview-top-name {
+  flex: 1;
+  color: var(--text-secondary);
+}
+
+.preview-top-trophies {
+  color: var(--warning);
+  font-weight: 600;
+}
+
+.preview-stats-row {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.preview-stat-item {
+  flex: 1;
+  text-align: center;
+  padding: 0.75rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius);
+}
+
+.preview-stat-value {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.preview-stat-value.positive {
+  color: var(--success);
+}
+
+.preview-stat-value.negative {
+  color: var(--danger);
+}
+
+.preview-stat-label {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+.preview-winloss {
+  display: flex;
   justify-content: center;
-  background: linear-gradient(135deg, var(--bg-card), rgba(99, 102, 241, 0.1));
-  min-height: 200px;
+  gap: 1.5rem;
+  padding: 0.5rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius);
+}
+
+.preview-wins {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.preview-losses {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.preview-link {
+  display: block;
+  margin-top: 1rem;
+  font-size: 0.8rem;
+  color: var(--accent);
+  text-align: right;
 }
 
 .action-content {
@@ -1076,7 +1223,7 @@ body {
   background: var(--bg-secondary);
   border-radius: var(--radius);
   margin-left: 50px;
-  height: 220px;
+  height: 280px;
   position: relative;
   cursor: crosshair;
 }
@@ -1471,8 +1618,13 @@ body {
     grid-template-columns: 1fr;
   }
 
-  .play-grid {
+  .play-grid-new {
     grid-template-columns: 1fr;
+  }
+
+  .action-card-main {
+    grid-row: auto;
+    min-height: 200px;
   }
 }
 
@@ -1489,7 +1641,7 @@ body {
     flex-direction: column;
   }
 
-  .quick-stats-grid {
+  .profile-play-stats {
     grid-template-columns: repeat(3, 1fr);
   }
 }
@@ -1523,5 +1675,61 @@ body {
 
   .hero-visual {
     display: none;
+  }
+}
+
+/* ============================================
+   MATCH FOUND ANIMATION
+   ============================================ */
+
+.match-animation-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  flex-direction: column;
+}
+
+.match-animation-video {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.6;
+}
+
+.match-animation-text {
+  position: relative;
+  z-index: 10;
+  text-align: center;
+  animation: matchTextPulse 1s ease-in-out infinite;
+}
+
+.match-animation-text h1 {
+  font-size: 4rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--accent), #a78bfa, #f59e0b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 0 40px rgba(99, 102, 241, 0.5);
+  margin-bottom: 1rem;
+  letter-spacing: 4px;
+}
+
+.match-animation-text p {
+  font-size: 1.5rem;
+  color: var(--text-secondary);
+}
+
+@keyframes matchTextPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
   }
 }

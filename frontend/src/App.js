@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { io } from 'socket.io-client';
 import API_URL from './config';
 import './App.css';
@@ -21,6 +21,11 @@ function App() {
   const [matchResult, setMatchResult] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
   const [matchHistory, setMatchHistory] = useState([]);
+  const [showMatchAnimation, setShowMatchAnimation] = useState(false);
+
+  // Refs for audio and video
+  const matchSoundRef = useRef(null);
+  const matchVideoRef = useRef(null);
 
   useEffect(() => {
     const newSocket = io(API_URL);
@@ -35,7 +40,16 @@ function App() {
       setOpponent(data.opponent);
       setMatchId(data.matchId);
       setSearchingMatch(false);
-      setView('match');
+      // Show animation and play sound
+      setShowMatchAnimation(true);
+      if (matchSoundRef.current) {
+        matchSoundRef.current.play().catch(e => console.log('Audio play failed:', e));
+      }
+      // Hide animation after 3 seconds and show match view
+      setTimeout(() => {
+        setShowMatchAnimation(false);
+        setView('match');
+      }, 3000);
     });
 
     socket.on('match_resolved', (data) => {
@@ -388,38 +402,15 @@ function App() {
   // Dashboard - Play Tab
   const renderPlayTab = () => {
     const rank = getRank(currentUser.trophies);
+    const totalGames = currentUser.wins + currentUser.losses;
+    const winRate = totalGames > 0 ? Math.round((currentUser.wins / totalGames) * 100) : 0;
+    const userRankPosition = leaderboard.findIndex(u => u.id === currentUser.id) + 1;
+
     return (
       <div className="tab-content">
-        <div className="play-grid">
-          {/* Quick Stats */}
-          <div className="card quick-stats">
-            <div className="quick-stats-header">
-              <div className="profile-avatar-large">{currentUser.gamertag.charAt(0).toUpperCase()}</div>
-              <div>
-                <h2>{currentUser.gamertag}</h2>
-                <div className="profile-rank" style={{ color: rank.color }}>
-                  {rank.icon} {rank.name}
-                </div>
-              </div>
-            </div>
-            <div className="quick-stats-grid">
-              <div className="quick-stat">
-                <span className="quick-stat-value">{currentUser.trophies}</span>
-                <span className="quick-stat-label">Trophies</span>
-              </div>
-              <div className="quick-stat">
-                <span className="quick-stat-value">{currentUser.wins}</span>
-                <span className="quick-stat-label">Wins</span>
-              </div>
-              <div className="quick-stat">
-                <span className="quick-stat-value">{currentUser.losses}</span>
-                <span className="quick-stat-label">Losses</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Find Match */}
-          <div className="card action-card-large">
+        <div className="play-grid-new">
+          {/* Find Match - Main Card */}
+          <div className="card action-card-main">
             <div className="action-content">
               <span className="action-icon-large">⚔️</span>
               <h3>Ready for battle?</h3>
@@ -428,6 +419,82 @@ function App() {
                 Find Match
               </button>
             </div>
+          </div>
+
+          {/* Profile Card */}
+          <div className="card profile-card-play">
+            <div className="profile-play-header">
+              <div className="profile-avatar-large">{currentUser.gamertag.charAt(0).toUpperCase()}</div>
+              <div className="profile-play-info">
+                <h2>{currentUser.gamertag}</h2>
+                <div className="profile-rank" style={{ color: rank.color }}>
+                  {rank.icon} {rank.name}
+                </div>
+              </div>
+            </div>
+            <div className="profile-play-stats">
+              <div className="profile-play-stat">
+                <span className="profile-play-value">{currentUser.trophies}</span>
+                <span className="profile-play-label">Trophies</span>
+              </div>
+              <div className="profile-play-stat">
+                <span className="profile-play-value">{currentUser.wins}</span>
+                <span className="profile-play-label">Wins</span>
+              </div>
+              <div className="profile-play-stat">
+                <span className="profile-play-value">{currentUser.losses}</span>
+                <span className="profile-play-label">Losses</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Leaderboard Preview */}
+          <div className="card preview-card" onClick={() => setActiveTab('leaderboard')}>
+            <div className="preview-header">
+              <span className="preview-icon">🏆</span>
+              <h3>Leaderboard</h3>
+            </div>
+            <div className="preview-content">
+              <div className="preview-rank">
+                <span className="preview-rank-label">Your Rank</span>
+                <span className="preview-rank-value">#{userRankPosition || '?'}</span>
+              </div>
+              <div className="preview-top3">
+                {leaderboard.slice(0, 3).map((user, index) => (
+                  <div key={user.id} className="preview-top-item">
+                    <span>{index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}</span>
+                    <span className="preview-top-name">{user.gamertag}</span>
+                    <span className="preview-top-trophies">{user.trophies}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <span className="preview-link">View full leaderboard →</span>
+          </div>
+
+          {/* Track Preview */}
+          <div className="card preview-card" onClick={() => setActiveTab('track')}>
+            <div className="preview-header">
+              <span className="preview-icon">📊</span>
+              <h3>Statistics</h3>
+            </div>
+            <div className="preview-content">
+              <div className="preview-stats-row">
+                <div className="preview-stat-item">
+                  <span className={`preview-stat-value ${winRate >= 50 ? 'positive' : 'negative'}`}>{winRate}%</span>
+                  <span className="preview-stat-label">Win Rate</span>
+                </div>
+                <div className="preview-stat-item">
+                  <span className="preview-stat-value">{totalGames}</span>
+                  <span className="preview-stat-label">Matches</span>
+                </div>
+              </div>
+              <div className="preview-winloss">
+                <span className="preview-wins">W {currentUser.wins}</span>
+                <span className="preview-losses">L {currentUser.losses}</span>
+              </div>
+            </div>
+            <span className="preview-link">View detailed stats →</span>
           </div>
         </div>
       </div>
@@ -473,6 +540,68 @@ function App() {
   // Dashboard - Track Tab
   const [chartHover, setChartHover] = useState({ show: false, x: 0, y: 0, value: 0, index: 0 });
 
+  // Memoize progression data to prevent regeneration on hover
+  const progressionData = useMemo(() => {
+    if (!currentUser) return [{ match: 0, trophies: 1000 }];
+
+    const data = [];
+    const startTrophies = 1000;
+    let trophies = startTrophies;
+    const totalMatches = currentUser.wins + currentUser.losses;
+
+    if (totalMatches === 0) {
+      return [{ match: 0, trophies: currentUser.trophies }];
+    }
+
+    // Create a deterministic pattern based on wins/losses
+    // Distribute wins and losses evenly for a realistic curve
+    const winPositions = new Set();
+    const winRatio = currentUser.wins / totalMatches;
+
+    // Seed random with a deterministic value based on user data
+    let seed = currentUser.wins * 1000 + currentUser.losses;
+    const seededRandom = () => {
+      seed = (seed * 9301 + 49297) % 233280;
+      return seed / 233280;
+    };
+
+    for (let i = 0; i < totalMatches; i++) {
+      if (seededRandom() < winRatio) {
+        winPositions.add(i);
+      }
+    }
+
+    // Adjust to match exact win count
+    while (winPositions.size < currentUser.wins && winPositions.size < totalMatches) {
+      for (let i = 0; i < totalMatches; i++) {
+        if (!winPositions.has(i)) {
+          winPositions.add(i);
+          break;
+        }
+      }
+    }
+    while (winPositions.size > currentUser.wins) {
+      const arr = Array.from(winPositions);
+      winPositions.delete(arr[arr.length - 1]);
+    }
+
+    for (let i = 0; i <= totalMatches; i++) {
+      data.push({ match: i, trophies: trophies });
+      if (i < totalMatches) {
+        const isWin = winPositions.has(i);
+        trophies += isWin ? 30 : -30;
+        trophies = Math.max(0, trophies);
+      }
+    }
+
+    // Adjust last point to match current trophies
+    if (data.length > 0) {
+      data[data.length - 1].trophies = currentUser.trophies;
+    }
+
+    return data;
+  }, [currentUser?.wins, currentUser?.losses, currentUser?.trophies]);
+
   const renderTrackTab = () => {
     const rank = getRank(currentUser.trophies);
     const totalGames = currentUser.wins + currentUser.losses;
@@ -481,40 +610,6 @@ function App() {
     const trophiesWon = currentUser.wins * 30;
     const trophiesLost = currentUser.losses * 30;
     const netTrophies = trophiesWon - trophiesLost;
-
-    // Generate trophy progression data based on wins/losses
-    const generateProgressionData = () => {
-      const data = [];
-      const startTrophies = 1000; // Starting trophies
-      let currentTrophies = startTrophies;
-      const totalMatches = currentUser.wins + currentUser.losses;
-
-      if (totalMatches === 0) {
-        return [{ match: 0, trophies: currentUser.trophies }];
-      }
-
-      // Simulate match history based on win/loss ratio
-      const winRatio = currentUser.wins / totalMatches;
-
-      for (let i = 0; i <= totalMatches; i++) {
-        data.push({ match: i, trophies: currentTrophies });
-        if (i < totalMatches) {
-          // Determine if this match was a win based on probability
-          const isWin = Math.random() < winRatio;
-          currentTrophies += isWin ? 30 : -30;
-          currentTrophies = Math.max(0, currentTrophies); // Don't go below 0
-        }
-      }
-
-      // Adjust the last point to match current trophies
-      if (data.length > 0) {
-        data[data.length - 1].trophies = currentUser.trophies;
-      }
-
-      return data;
-    };
-
-    const progressionData = generateProgressionData();
     const maxTrophies = Math.max(...progressionData.map(d => d.trophies), currentUser.trophies + 100);
     const minTrophies = Math.min(...progressionData.map(d => d.trophies), currentUser.trophies - 100);
     const trophyRange = maxTrophies - minTrophies || 100;
@@ -697,14 +792,14 @@ function App() {
                     {/* Area fill */}
                     <defs>
                       <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#f97316" stopOpacity="0.4"/>
-                        <stop offset="100%" stopColor="#f97316" stopOpacity="0.05"/>
+                        <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.4"/>
+                        <stop offset="100%" stopColor="#6366f1" stopOpacity="0.05"/>
                       </linearGradient>
                     </defs>
                     <path d={generateAreaPath()} fill="url(#areaGradient)"/>
 
                     {/* Main curve */}
-                    <path d={generatePath()} fill="none" stroke="#f97316" strokeWidth="0.8"/>
+                    <path d={generatePath()} fill="none" stroke="#8b5cf6" strokeWidth="0.8"/>
 
                     {/* Hover elements */}
                     {chartHover.show && (
@@ -725,7 +820,7 @@ function App() {
                           cy={chartHover.y}
                           r="1.5"
                           fill="#fff"
-                          stroke="#f97316"
+                          stroke="#8b5cf6"
                           strokeWidth="0.5"
                         />
                       </>
@@ -927,6 +1022,30 @@ function App() {
 
   return (
     <div className="app">
+      {/* Hidden audio element for match found sound */}
+      <audio ref={matchSoundRef} preload="auto">
+        <source src="/match-found.opus" type="audio/opus" />
+        <source src="/match-found.mp3" type="audio/mpeg" />
+      </audio>
+
+      {/* Match found animation overlay */}
+      {showMatchAnimation && (
+        <div className="match-animation-overlay">
+          <video
+            ref={matchVideoRef}
+            autoPlay
+            muted
+            className="match-animation-video"
+          >
+            <source src="/match-found.webm" type="video/webm" />
+          </video>
+          <div className="match-animation-text">
+            <h1>OPPONENT FOUND!</h1>
+            <p>Get ready for battle</p>
+          </div>
+        </div>
+      )}
+
       {view === 'landing' && renderLanding()}
       {view === 'dashboard' && renderDashboard()}
       {view === 'searching' && renderSearching()}
