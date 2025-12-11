@@ -1034,16 +1034,9 @@ function App() {
           autoPlay
           playsInline
           className="match-found-video"
-          src={process.env.PUBLIC_URL + '/chroma-keyed-video.webm'}
-          onError={(e) => console.log('Video error:', e.target.error)}
-          onLoadedData={() => console.log('Video loaded successfully')}
+          src="/match-found.mp4"
         />
-        <audio
-          autoPlay
-          src={process.env.PUBLIC_URL + '/Hog-rider-sound-effect.mp3'}
-          onError={(e) => console.log('Audio error:', e.target.error)}
-          onLoadedData={() => console.log('Audio loaded successfully')}
-        />
+        <audio autoPlay src="/match-found.mp3" />
         <h1 className="match-found-text">MATCH FOUND!</h1>
       </div>
     </div>
