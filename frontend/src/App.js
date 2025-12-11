@@ -448,6 +448,18 @@ function App() {
                 <button className="btn-action-large" onClick={findMatch}>
                   Find Match
                 </button>
+                {/* Bouton test temporaire */}
+                <button
+                  style={{marginTop: '10px', padding: '8px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem'}}
+                  onClick={() => {
+                    setShowMatchFoundAnimation(true);
+                    const audio = new Audio('/Hog-rider-sound-effect.mp3');
+                    audio.play();
+                    setTimeout(() => setShowMatchFoundAnimation(false), 3000);
+                  }}
+                >
+                  TEST ANIMATION
+                </button>
               </div>
             </div>
           </div>
