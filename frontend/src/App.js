@@ -39,7 +39,7 @@ function App() {
       setShowMatchFoundAnimation(true);
 
       // Play sound
-      const audio = new Audio('/Hog-rider-sound-effect.opus');
+      const audio = new Audio('/Hog-rider-sound-effect.mp3');
       audio.volume = 0.7;
       audio.play().catch(e => console.log('Audio play failed:', e));
 
