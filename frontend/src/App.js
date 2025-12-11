@@ -38,11 +38,6 @@ function App() {
       setPendingMatchData(data);
       setShowMatchFoundAnimation(true);
 
-      // Play sound
-      const audio = new Audio('/Hog-rider-sound-effect.mp3');
-      audio.volume = 0.7;
-      audio.play().catch(e => console.log('Audio play failed:', e));
-
       // After animation ends, show match screen
       setTimeout(() => {
         setShowMatchFoundAnimation(false);
@@ -1036,7 +1031,11 @@ function App() {
           className="match-found-video"
           src="/match-found.mp4"
         />
-        <audio autoPlay src="/match-found.mp3" />
+        <audio autoPlay>
+          <source src="/match-found.ogg" type="audio/ogg" />
+          <source src="/match-found.wav" type="audio/wav" />
+          <source src="/match-found.mp3" type="audio/mpeg" />
+        </audio>
         <h1 className="match-found-text">MATCH FOUND!</h1>
       </div>
     </div>
