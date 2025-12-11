@@ -398,17 +398,11 @@ body {
   font-size: 6rem;
 }
 
-.hero-swords {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-  font-size: 4rem;
-}
-
-.crown-icon {
-  font-size: 5rem;
+.hero-king-image {
+  width: 280px;
+  height: auto;
   animation: bounce 2s ease-in-out infinite;
+  filter: drop-shadow(0 0 30px rgba(99, 102, 241, 0.5));
 }
 
 @keyframes bounce {

@@ -24,6 +24,21 @@ function App() {
   const [showMatchFoundAnimation, setShowMatchFoundAnimation] = useState(false);
   const [pendingMatchData, setPendingMatchData] = useState(null);
 
+  // Play match found audio with fallbacks
+  const playMatchFoundAudio = () => {
+    const audio = new Audio('/match-found.ogg');
+    audio.volume = 0.7;
+    audio.play().catch(() => {
+      const audioWav = new Audio('/match-found.wav');
+      audioWav.volume = 0.7;
+      audioWav.play().catch(() => {
+        const audioMp3 = new Audio('/match-found.mp3');
+        audioMp3.volume = 0.7;
+        audioMp3.play().catch(e => console.log('Audio failed:', e));
+      });
+    });
+  };
+
   useEffect(() => {
     const newSocket = io(API_URL);
     setSocket(newSocket);
@@ -37,6 +52,7 @@ function App() {
       setSearchingMatch(false);
       setPendingMatchData(data);
       setShowMatchFoundAnimation(true);
+      playMatchFoundAudio();
 
       // After animation ends, show match screen
       setTimeout(() => {
@@ -265,7 +281,7 @@ function App() {
             Tired of evos / <span className="highlight">Level 16</span> cards?
           </h1>
           <p className="hero-subtitle">
-            Compete against players in classic mode like in the old days with a leaderboard
+            Compete against players in classic mode like in the good old days with a competitive leaderboard
           </p>
           <div className="hero-actions">
             <button className="btn-large" onClick={() => openAuth('register')}>
@@ -276,11 +292,7 @@ function App() {
         <div className="hero-visual">
           <div className="hero-card">
             <div className="card-glow"></div>
-            <div className="hero-swords">
-              <span>⚔️</span>
-              <span className="crown-icon">👑</span>
-              <span>⚔️</span>
-            </div>
+            <img src="/king-clash.png" alt="Clash King" className="hero-king-image" />
           </div>
         </div>
       </main>
@@ -448,6 +460,7 @@ function App() {
                   style={{marginTop: '10px', padding: '8px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem'}}
                   onClick={() => {
                     setShowMatchFoundAnimation(true);
+                    playMatchFoundAudio();
                     setTimeout(() => setShowMatchFoundAnimation(false), 4000);
                   }}
                 >
@@ -1028,14 +1041,10 @@ function App() {
         <video
           autoPlay
           playsInline
+          muted
           className="match-found-video"
           src="/match-found.mp4"
         />
-        <audio autoPlay>
-          <source src="/match-found.ogg" type="audio/ogg" />
-          <source src="/match-found.wav" type="audio/wav" />
-          <source src="/match-found.mp3" type="audio/mpeg" />
-        </audio>
         <h1 className="match-found-text">MATCH FOUND!</h1>
       </div>
     </div>
