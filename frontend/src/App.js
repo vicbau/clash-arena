@@ -21,8 +21,6 @@ function App() {
   const [matchResult, setMatchResult] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
   const [matchHistory, setMatchHistory] = useState([]);
-  const [showMatchFoundAnimation, setShowMatchFoundAnimation] = useState(false);
-  const [pendingMatchData, setPendingMatchData] = useState(null);
 
   // Play match found audio with fallbacks
   const playMatchFoundAudio = () => {
@@ -50,18 +48,10 @@ function App() {
 
     socket.on('match_found', (data) => {
       setSearchingMatch(false);
-      setPendingMatchData(data);
-      setShowMatchFoundAnimation(true);
       playMatchFoundAudio();
-
-      // After animation ends, show match screen
-      setTimeout(() => {
-        setShowMatchFoundAnimation(false);
-        setOpponent(data.opponent);
-        setMatchId(data.matchId);
-        setView('match');
-        setPendingMatchData(null);
-      }, 3000); // 3 seconds for animation
+      setOpponent(data.opponent);
+      setMatchId(data.matchId);
+      setView('match');
     });
 
     socket.on('match_resolved', (data) => {
@@ -454,17 +444,6 @@ function App() {
                 <p>Find an opponent at your level</p>
                 <button className="btn-action-large" onClick={findMatch}>
                   Find Match
-                </button>
-                {/* Bouton test temporaire */}
-                <button
-                  style={{marginTop: '10px', padding: '8px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem'}}
-                  onClick={() => {
-                    setShowMatchFoundAnimation(true);
-                    playMatchFoundAudio();
-                    setTimeout(() => setShowMatchFoundAnimation(false), 4000);
-                  }}
-                >
-                  TEST ANIMATION
                 </button>
               </div>
             </div>
@@ -1034,22 +1013,6 @@ function App() {
     );
   };
 
-  // Match Found Animation
-  const renderMatchFoundAnimation = () => (
-    <div className="match-found-overlay">
-      <div className="match-found-container">
-        <video
-          autoPlay
-          playsInline
-          muted
-          className="match-found-video"
-          src="/match-found.mp4"
-        />
-        <h1 className="match-found-text">MATCH FOUND!</h1>
-      </div>
-    </div>
-  );
-
   return (
     <div className="app">
       {view === 'landing' && renderLanding()}
@@ -1058,7 +1021,6 @@ function App() {
       {view === 'match' && renderMatch()}
       {view === 'result' && renderResult()}
       {showAuthModal && renderAuthModal()}
-      {showMatchFoundAnimation && renderMatchFoundAnimation()}
     </div>
   );
 }
