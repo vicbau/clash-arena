@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { io } from 'socket.io-client';
 import API_URL from './config';
 import './App.css';
@@ -388,45 +388,110 @@ function App() {
   // Dashboard - Play Tab
   const renderPlayTab = () => {
     const rank = getRank(currentUser.trophies);
+    const userRankPosition = leaderboard.findIndex(u => u.id === currentUser.id) + 1;
+    const totalGames = currentUser.wins + currentUser.losses;
+    const winRate = totalGames > 0 ? Math.round((currentUser.wins / totalGames) * 100) : 0;
+
     return (
       <div className="tab-content">
-        <div className="play-grid">
-          {/* Quick Stats */}
-          <div className="card quick-stats">
-            <div className="quick-stats-header">
-              <div className="profile-avatar-large">{currentUser.gamertag.charAt(0).toUpperCase()}</div>
-              <div>
-                <h2>{currentUser.gamertag}</h2>
-                <div className="profile-rank" style={{ color: rank.color }}>
-                  {rank.icon} {rank.name}
+        <div className="play-grid-new">
+          {/* Top Row: Profile + Find Match */}
+          <div className="play-top-row">
+            {/* Quick Stats */}
+            <div className="card quick-stats-compact">
+              <div className="quick-stats-header">
+                <div className="profile-avatar-large">{currentUser.gamertag.charAt(0).toUpperCase()}</div>
+                <div>
+                  <h2>{currentUser.gamertag}</h2>
+                  <div className="profile-rank" style={{ color: rank.color }}>
+                    {rank.icon} {rank.name}
+                  </div>
+                </div>
+              </div>
+              <div className="quick-stats-grid">
+                <div className="quick-stat">
+                  <span className="quick-stat-value">{currentUser.trophies}</span>
+                  <span className="quick-stat-label">Trophies</span>
+                </div>
+                <div className="quick-stat">
+                  <span className="quick-stat-value">{currentUser.wins}</span>
+                  <span className="quick-stat-label">Wins</span>
+                </div>
+                <div className="quick-stat">
+                  <span className="quick-stat-value">{currentUser.losses}</span>
+                  <span className="quick-stat-label">Losses</span>
                 </div>
               </div>
             </div>
-            <div className="quick-stats-grid">
-              <div className="quick-stat">
-                <span className="quick-stat-value">{currentUser.trophies}</span>
-                <span className="quick-stat-label">Trophies</span>
-              </div>
-              <div className="quick-stat">
-                <span className="quick-stat-value">{currentUser.wins}</span>
-                <span className="quick-stat-label">Wins</span>
-              </div>
-              <div className="quick-stat">
-                <span className="quick-stat-value">{currentUser.losses}</span>
-                <span className="quick-stat-label">Losses</span>
+
+            {/* Find Match */}
+            <div className="card action-card-compact">
+              <div className="action-content">
+                <span className="action-icon-large">⚔️</span>
+                <h3>Ready for battle?</h3>
+                <p>Find an opponent at your level</p>
+                <button className="btn-action-large" onClick={findMatch}>
+                  Find Match
+                </button>
               </div>
             </div>
           </div>
 
-          {/* Find Match */}
-          <div className="card action-card-large">
-            <div className="action-content">
-              <span className="action-icon-large">⚔️</span>
-              <h3>Ready for battle?</h3>
-              <p>Find an opponent at your level</p>
-              <button className="btn-action-large" onClick={findMatch}>
-                Find Match
-              </button>
+          {/* Bottom Row: Leaderboard Mini + Track Mini */}
+          <div className="play-bottom-row">
+            {/* Mini Leaderboard */}
+            <div className="card mini-card" onClick={() => setActiveTab('leaderboard')}>
+              <div className="mini-card-header">
+                <span className="mini-card-icon">🏆</span>
+                <h3>Leaderboard</h3>
+              </div>
+              <div className="mini-card-content">
+                <div className="mini-stat-row">
+                  <span className="mini-stat-label">Your Rank</span>
+                  <span className="mini-stat-value highlight">#{userRankPosition || '?'}</span>
+                </div>
+                <div className="mini-leaderboard-preview">
+                  {leaderboard.slice(0, 3).map((user, index) => (
+                    <div key={user.id} className={`mini-lb-item ${user.id === currentUser.id ? 'current' : ''}`}>
+                      <span className="mini-lb-pos">{index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}</span>
+                      <span className="mini-lb-name">{user.gamertag}</span>
+                      <span className="mini-lb-trophies">{user.trophies}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="mini-card-footer">
+                <span>View Full Leaderboard →</span>
+              </div>
+            </div>
+
+            {/* Mini Track */}
+            <div className="card mini-card" onClick={() => setActiveTab('track')}>
+              <div className="mini-card-header">
+                <span className="mini-card-icon">📊</span>
+                <h3>Track</h3>
+              </div>
+              <div className="mini-card-content">
+                <div className="mini-stat-row">
+                  <span className="mini-stat-label">Win Rate</span>
+                  <span className={`mini-stat-value ${winRate >= 50 ? 'positive' : 'negative'}`}>{winRate}%</span>
+                </div>
+                <div className="mini-stat-row">
+                  <span className="mini-stat-label">Total Matches</span>
+                  <span className="mini-stat-value">{totalGames}</span>
+                </div>
+                <div className="mini-progress-bar">
+                  <div className="mini-progress-fill wins" style={{ width: `${totalGames > 0 ? (currentUser.wins / totalGames) * 100 : 50}%` }}></div>
+                  <div className="mini-progress-fill losses" style={{ width: `${totalGames > 0 ? (currentUser.losses / totalGames) * 100 : 50}%` }}></div>
+                </div>
+                <div className="mini-wl-legend">
+                  <span className="wins-text">W: {currentUser.wins}</span>
+                  <span className="losses-text">L: {currentUser.losses}</span>
+                </div>
+              </div>
+              <div className="mini-card-footer">
+                <span>View Full Stats →</span>
+              </div>
             </div>
           </div>
         </div>
@@ -473,6 +538,51 @@ function App() {
   // Dashboard - Track Tab
   const [chartHover, setChartHover] = useState({ show: false, x: 0, y: 0, value: 0, index: 0 });
 
+  // Memoize progression data to prevent regeneration on every hover
+  const progressionData = useMemo(() => {
+    if (!currentUser) return [{ match: 0, trophies: 1000 }];
+
+    const data = [];
+    const startTrophies = 1000;
+    let currentTrophies = startTrophies;
+    const totalMatches = currentUser.wins + currentUser.losses;
+
+    if (totalMatches === 0) {
+      return [{ match: 0, trophies: currentUser.trophies }];
+    }
+
+    // Use a seeded approach for consistent random values
+    const winRatio = currentUser.wins / totalMatches;
+
+    // Create a deterministic pattern based on wins/losses
+    const wins = currentUser.wins;
+    const losses = currentUser.losses;
+    const pattern = [];
+
+    // Distribute wins and losses evenly with some variation
+    for (let i = 0; i < totalMatches; i++) {
+      const expectedWins = Math.round((i + 1) * winRatio);
+      const currentWins = pattern.filter(x => x).length;
+      pattern.push(currentWins < expectedWins);
+    }
+
+    for (let i = 0; i <= totalMatches; i++) {
+      data.push({ match: i, trophies: currentTrophies });
+      if (i < totalMatches) {
+        const isWin = pattern[i];
+        currentTrophies += isWin ? 30 : -30;
+        currentTrophies = Math.max(0, currentTrophies);
+      }
+    }
+
+    // Adjust the last point to match current trophies
+    if (data.length > 0) {
+      data[data.length - 1].trophies = currentUser.trophies;
+    }
+
+    return data;
+  }, [currentUser?.wins, currentUser?.losses, currentUser?.trophies]);
+
   const renderTrackTab = () => {
     const rank = getRank(currentUser.trophies);
     const totalGames = currentUser.wins + currentUser.losses;
@@ -481,40 +591,6 @@ function App() {
     const trophiesWon = currentUser.wins * 30;
     const trophiesLost = currentUser.losses * 30;
     const netTrophies = trophiesWon - trophiesLost;
-
-    // Generate trophy progression data based on wins/losses
-    const generateProgressionData = () => {
-      const data = [];
-      const startTrophies = 1000; // Starting trophies
-      let currentTrophies = startTrophies;
-      const totalMatches = currentUser.wins + currentUser.losses;
-
-      if (totalMatches === 0) {
-        return [{ match: 0, trophies: currentUser.trophies }];
-      }
-
-      // Simulate match history based on win/loss ratio
-      const winRatio = currentUser.wins / totalMatches;
-
-      for (let i = 0; i <= totalMatches; i++) {
-        data.push({ match: i, trophies: currentTrophies });
-        if (i < totalMatches) {
-          // Determine if this match was a win based on probability
-          const isWin = Math.random() < winRatio;
-          currentTrophies += isWin ? 30 : -30;
-          currentTrophies = Math.max(0, currentTrophies); // Don't go below 0
-        }
-      }
-
-      // Adjust the last point to match current trophies
-      if (data.length > 0) {
-        data[data.length - 1].trophies = currentUser.trophies;
-      }
-
-      return data;
-    };
-
-    const progressionData = generateProgressionData();
     const maxTrophies = Math.max(...progressionData.map(d => d.trophies), currentUser.trophies + 100);
     const minTrophies = Math.min(...progressionData.map(d => d.trophies), currentUser.trophies - 100);
     const trophyRange = maxTrophies - minTrophies || 100;
@@ -664,7 +740,7 @@ function App() {
                 </div>
                 <span className="stat-name">Matches Played</span>
                 <div className="stat-bar">
-                  <div className="stat-bar-fill" style={{ width: `${Math.min(totalGames * 2, 100)}%`, backgroundColor: '#f59e0b' }}></div>
+                  <div className="stat-bar-fill" style={{ width: `${Math.min(totalGames * 2, 100)}%`, backgroundColor: '#8b5cf6' }}></div>
                 </div>
               </div>
             </div>
@@ -697,14 +773,14 @@ function App() {
                     {/* Area fill */}
                     <defs>
                       <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#f97316" stopOpacity="0.4"/>
-                        <stop offset="100%" stopColor="#f97316" stopOpacity="0.05"/>
+                        <stop offset="0%" stopColor="#6366f1" stopOpacity="0.4"/>
+                        <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.05"/>
                       </linearGradient>
                     </defs>
                     <path d={generateAreaPath()} fill="url(#areaGradient)"/>
 
                     {/* Main curve */}
-                    <path d={generatePath()} fill="none" stroke="#f97316" strokeWidth="0.8"/>
+                    <path d={generatePath()} fill="none" stroke="#6366f1" strokeWidth="0.8"/>
 
                     {/* Hover elements */}
                     {chartHover.show && (
@@ -725,7 +801,7 @@ function App() {
                           cy={chartHover.y}
                           r="1.5"
                           fill="#fff"
-                          stroke="#f97316"
+                          stroke="#6366f1"
                           strokeWidth="0.5"
                         />
                       </>
