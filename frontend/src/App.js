@@ -454,8 +454,11 @@ function App() {
                   onClick={() => {
                     setShowMatchFoundAnimation(true);
                     const audio = new Audio('/Hog-rider-sound-effect.mp3');
-                    audio.play();
-                    setTimeout(() => setShowMatchFoundAnimation(false), 3000);
+                    audio.volume = 1.0;
+                    audio.play()
+                      .then(() => console.log('Audio playing!'))
+                      .catch(e => console.log('Audio error:', e.message));
+                    setTimeout(() => setShowMatchFoundAnimation(false), 4000);
                   }}
                 >
                   TEST ANIMATION
@@ -1034,11 +1037,13 @@ function App() {
       <div className="match-found-container">
         <video
           autoPlay
-          muted
+          playsInline
           className="match-found-video"
-          onEnded={() => {}}
+          onError={(e) => console.log('Video error:', e)}
+          onLoadedData={() => console.log('Video loaded')}
         >
           <source src="/chroma-keyed-video.webm" type="video/webm" />
+          Your browser does not support the video tag.
         </video>
         <h1 className="match-found-text">MATCH FOUND!</h1>
       </div>
