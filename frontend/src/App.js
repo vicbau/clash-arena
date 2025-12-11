@@ -21,6 +21,8 @@ function App() {
   const [matchResult, setMatchResult] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
   const [matchHistory, setMatchHistory] = useState([]);
+  const [showMatchFoundAnimation, setShowMatchFoundAnimation] = useState(false);
+  const [pendingMatchData, setPendingMatchData] = useState(null);
 
   useEffect(() => {
     const newSocket = io(API_URL);
@@ -32,10 +34,23 @@ function App() {
     if (!socket) return;
 
     socket.on('match_found', (data) => {
-      setOpponent(data.opponent);
-      setMatchId(data.matchId);
       setSearchingMatch(false);
-      setView('match');
+      setPendingMatchData(data);
+      setShowMatchFoundAnimation(true);
+
+      // Play sound
+      const audio = new Audio('/Hog-rider-sound-effect.opus');
+      audio.volume = 0.7;
+      audio.play().catch(e => console.log('Audio play failed:', e));
+
+      // After animation ends, show match screen
+      setTimeout(() => {
+        setShowMatchFoundAnimation(false);
+        setOpponent(data.opponent);
+        setMatchId(data.matchId);
+        setView('match');
+        setPendingMatchData(null);
+      }, 3000); // 3 seconds for animation
     });
 
     socket.on('match_resolved', (data) => {
@@ -1001,6 +1016,23 @@ function App() {
     );
   };
 
+  // Match Found Animation
+  const renderMatchFoundAnimation = () => (
+    <div className="match-found-overlay">
+      <div className="match-found-container">
+        <video
+          autoPlay
+          muted
+          className="match-found-video"
+          onEnded={() => {}}
+        >
+          <source src="/chroma-keyed-video.webm" type="video/webm" />
+        </video>
+        <h1 className="match-found-text">MATCH FOUND!</h1>
+      </div>
+    </div>
+  );
+
   return (
     <div className="app">
       {view === 'landing' && renderLanding()}
@@ -1009,6 +1041,7 @@ function App() {
       {view === 'match' && renderMatch()}
       {view === 'result' && renderResult()}
       {showAuthModal && renderAuthModal()}
+      {showMatchFoundAnimation && renderMatchFoundAnimation()}
     </div>
   );
 }

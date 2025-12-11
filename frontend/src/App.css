@@ -1597,6 +1597,82 @@ body {
 }
 
 /* ============================================
+   MATCH FOUND ANIMATION
+   ============================================ */
+
+.match-found-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.match-found-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.match-found-video {
+  width: 400px;
+  max-width: 90vw;
+  height: auto;
+  border-radius: var(--radius-lg);
+}
+
+.match-found-text {
+  position: absolute;
+  bottom: -60px;
+  font-size: 3rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, var(--accent), #a78bfa, #f472b6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 0 40px rgba(99, 102, 241, 0.5);
+  animation: pulseText 0.5s ease-in-out infinite alternate;
+  letter-spacing: 4px;
+}
+
+@keyframes pulseText {
+  from {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  to {
+    transform: scale(1.05);
+    filter: brightness(1.2);
+  }
+}
+
+@media (max-width: 640px) {
+  .match-found-video {
+    width: 280px;
+  }
+
+  .match-found-text {
+    font-size: 2rem;
+    bottom: -50px;
+  }
+}
+
+/* ============================================
    RESPONSIVE
    ============================================ */
 
