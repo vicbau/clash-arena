@@ -9,7 +9,6 @@ const { HttpsProxyAgent } = require('https-proxy-agent');
 
 const User = require('./models/User');
 const Match = require('./models/Match');
-const CardStat = require('./models/CardStat');
 
 // Configuration API Clash Royale
 const CLASH_API_BASE = 'https://api.clashroyale.com/v1';
@@ -164,46 +163,6 @@ async function verifyMatchResult(player1Tag, player2Tag, matchCreatedAt) {
     console.error('Erreur verification match:', error);
     return { found: false, error: error.message };
   }
-}
-
-// Function to update card statistics
-async function updateCardStats(cards, won, battleType) {
-  const battleCategory = getBattleCategory(battleType);
-
-  for (const card of cards) {
-    try {
-      const cardKey = card.name.toLowerCase().replace(/\s+/g, '_');
-
-      await CardStat.findOneAndUpdate(
-        { cardKey },
-        {
-          $set: {
-            cardName: card.name,
-            cardKey,
-            lastUpdated: new Date()
-          },
-          $inc: {
-            totalUses: 1,
-            wins: won ? 1 : 0,
-            losses: won ? 0 : 1,
-            [`battleTypes.${battleCategory}.uses`]: 1,
-            [`battleTypes.${battleCategory}.wins`]: won ? 1 : 0
-          }
-        },
-        { upsert: true, new: true }
-      );
-    } catch (err) {
-      console.error('Error updating card stat for', card.name, ':', err.message);
-    }
-  }
-}
-
-// Get battle category for stats
-function getBattleCategory(battleType) {
-  if (battleType === 'PvP' || battleType === 'pathOfLegend') return 'classic';
-  if (battleType === 'challenge') return 'challenge';
-  if (battleType.includes('friendly') || battleType.includes('Friendly')) return 'friendly';
-  return 'other';
 }
 
 const app = express();
@@ -534,18 +493,6 @@ app.post('/api/verify-match', async (req, res) => {
 
     console.log('Match verifie automatiquement: ' + winner.gamertag + ' bat ' + loser.gamertag);
 
-    // Update card statistics asynchronously (don't block the response)
-    if (result.winnerCards && result.winnerCards.length > 0) {
-      updateCardStats(result.winnerCards, true, result.battleType).catch(err => {
-        console.error('Error updating winner card stats:', err);
-      });
-    }
-    if (result.loserCards && result.loserCards.length > 0) {
-      updateCardStats(result.loserCards, false, result.battleType).catch(err => {
-        console.error('Error updating loser card stats:', err);
-      });
-    }
-
   } catch (error) {
     console.error('Erreur verification match:', error);
     res.status(500).json({ error: 'Erreur serveur' });
@@ -592,33 +539,103 @@ app.get('/api/leaderboard', async (req, res) => {
   }
 });
 
-// Card statistics
-app.get('/api/card-stats', async (req, res) => {
+// Card statistics - fetches from all users' battlelogs
+// Mode: 'tripleDraft' or 'classic'
+app.get('/api/card-stats/:mode', async (req, res) => {
   try {
-    const cardStats = await CardStat.find()
-      .sort({ totalUses: -1 })
-      .lean();
+    const mode = req.params.mode; // 'tripleDraft' or 'classic'
 
-    // Calculate win rate and format response
-    const formattedStats = cardStats.map(card => {
-      const total = card.wins + card.losses;
-      const winRate = total > 0 ? Math.round((card.wins / total) * 100) : 0;
+    // Define game mode filters
+    const gameModeFilters = {
+      tripleDraft: ['Draft_Competitive', 'TripleDraft', 'Triple_Draft', 'Draft'],
+      classic: ['ChallengeClassic', 'Challenge_Classic', 'Classic', 'ClassicDecks']
+    };
 
-      return {
-        cardName: card.cardName,
-        cardKey: card.cardKey,
-        imageFile: card.imageFile,
-        totalUses: card.totalUses,
-        wins: card.wins,
-        losses: card.losses,
-        winRate,
-        matches: total,
-        battleTypes: card.battleTypes,
-        lastUpdated: card.lastUpdated
-      };
+    const targetModes = gameModeFilters[mode];
+    if (!targetModes) {
+      return res.status(400).json({ error: 'Mode invalide. Utilisez tripleDraft ou classic' });
+    }
+
+    // Get all registered users
+    const users = await User.find().select('playerTag').lean();
+
+    // 24 hours ago
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    // Card stats aggregation
+    const cardStats = {};
+    let totalBattlesAnalyzed = 0;
+
+    // Fetch battlelogs for all users (limit concurrent requests)
+    for (const user of users) {
+      try {
+        const battleLog = await getPlayerBattleLog(user.playerTag);
+
+        for (const battle of battleLog) {
+          // Check if battle is in the target game mode
+          const gameModeName = battle.gameMode ? battle.gameMode.name : '';
+          const isTargetMode = targetModes.some(m =>
+            gameModeName.toLowerCase().includes(m.toLowerCase()) ||
+            gameModeName.toLowerCase().replace(/_/g, '').includes(m.toLowerCase().replace(/_/g, ''))
+          );
+
+          if (!isTargetMode) continue;
+
+          // Check if battle is within last 24 hours
+          const battleTime = parseBattleTime(battle.battleTime);
+          if (battleTime < twentyFourHoursAgo) continue;
+
+          totalBattlesAnalyzed++;
+
+          // Get player's cards and result
+          const playerCards = battle.team && battle.team[0] ? battle.team[0].cards : [];
+          const playerCrowns = battle.team && battle.team[0] ? battle.team[0].crowns : 0;
+          const opponentCrowns = battle.opponent && battle.opponent[0] ? battle.opponent[0].crowns : 0;
+          const won = playerCrowns > opponentCrowns;
+
+          // Aggregate card stats
+          for (const card of playerCards) {
+            const cardKey = card.name.toLowerCase().replace(/\s+/g, '_');
+
+            if (!cardStats[cardKey]) {
+              cardStats[cardKey] = {
+                cardName: card.name,
+                cardKey: cardKey,
+                totalUses: 0,
+                wins: 0,
+                losses: 0
+              };
+            }
+
+            cardStats[cardKey].totalUses++;
+            if (won) {
+              cardStats[cardKey].wins++;
+            } else {
+              cardStats[cardKey].losses++;
+            }
+          }
+        }
+      } catch (err) {
+        // Skip users with API errors
+        console.error('Error fetching battlelog for', user.playerTag, ':', err.message);
+      }
+    }
+
+    // Format and sort by usage
+    const formattedStats = Object.values(cardStats)
+      .map(card => ({
+        ...card,
+        winRate: card.totalUses > 0 ? Math.round((card.wins / card.totalUses) * 100) : 0
+      }))
+      .sort((a, b) => b.totalUses - a.totalUses);
+
+    res.json({
+      mode,
+      totalBattles: totalBattlesAnalyzed,
+      totalUsers: users.length,
+      period: '24h',
+      cards: formattedStats
     });
-
-    res.json(formattedStats);
   } catch (error) {
     console.error('Error fetching card stats:', error);
     res.status(500).json({ error: 'Erreur serveur' });

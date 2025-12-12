@@ -889,14 +889,15 @@ function App() {
   };
 
   // State for card statistics
-  const [cardStats, setCardStats] = useState([]);
+  const [cardStats, setCardStats] = useState({ cards: [], totalBattles: 0, mode: '' });
   const [cardStatsLoading, setCardStatsLoading] = useState(false);
+  const [cardMode, setCardMode] = useState('tripleDraft'); // 'tripleDraft' or 'classic'
 
   // Fetch card statistics from backend
-  const fetchCardStats = async () => {
+  const fetchCardStats = async (mode) => {
     setCardStatsLoading(true);
     try {
-      const response = await fetch(API_URL + '/api/card-stats');
+      const response = await fetch(API_URL + '/api/card-stats/' + mode);
       if (response.ok) {
         const data = await response.json();
         setCardStats(data);
@@ -907,65 +908,89 @@ function App() {
     setCardStatsLoading(false);
   };
 
-  // Fetch card stats when cards tab is opened
+  // Fetch card stats when cards tab is opened or mode changes
   useEffect(() => {
-    if (activeTab === 'cards' && cardStats.length === 0) {
-      fetchCardStats();
+    if (activeTab === 'cards') {
+      fetchCardStats(cardMode);
     }
-  }, [activeTab]);
+  }, [activeTab, cardMode]);
 
   // Dashboard - Cards Tab
   const renderCardsTab = () => {
-    const totalMatches = cardStats.reduce((sum, card) => sum + card.matches, 0) / 8; // 8 cards per deck
+    const cards = cardStats.cards || [];
+    const totalBattles = cardStats.totalBattles || 0;
 
     return (
       <div className="tab-content">
         <div className="cards-container">
+          {/* Mode Selector */}
+          <div className="cards-mode-selector">
+            <button
+              className={`mode-btn ${cardMode === 'tripleDraft' ? 'active' : ''}`}
+              onClick={() => setCardMode('tripleDraft')}
+            >
+              Tirage Triple
+            </button>
+            <button
+              className={`mode-btn ${cardMode === 'classic' ? 'active' : ''}`}
+              onClick={() => setCardMode('classic')}
+            >
+              Classique
+            </button>
+          </div>
+
           <div className="cards-header">
-            <h2>Card Statistics</h2>
-            <p className="cards-subtitle">Usage and win rates from matches on Clash Arena</p>
+            <p className="cards-subtitle">
+              Stats des cartes jouées par les utilisateurs du site (dernières 24h)
+            </p>
             <div className="cards-meta">
-              <span className="meta-item">Total Matches Tracked: {Math.round(totalMatches) || 0}</span>
+              <span className="meta-item">Combats analysés: {totalBattles}</span>
+              <span className="meta-item">Joueurs: {cardStats.totalUsers || 0}</span>
             </div>
           </div>
 
           {cardStatsLoading ? (
             <div className="cards-loading">
               <div className="searching-spinner"></div>
-              <p>Loading card statistics...</p>
+              <p>Chargement des statistiques...</p>
             </div>
-          ) : cardStats.length === 0 ? (
+          ) : cards.length === 0 ? (
             <div className="cards-empty">
               <div className="empty-icon">🃏</div>
-              <h3>No Data Yet</h3>
-              <p>Card statistics will appear here once matches are played and verified on Clash Arena.</p>
-              <p className="empty-hint">Play matches to start tracking card usage and win rates!</p>
+              <h3>Pas de données</h3>
+              <p>Aucun combat {cardMode === 'tripleDraft' ? 'Triple Draft' : 'Classic Challenge'} trouvé dans les dernières 24h.</p>
+              <p className="empty-hint">Les statistiques apparaîtront quand des joueurs inscrits auront joué ce mode.</p>
             </div>
           ) : (
             <>
               <div className="cards-filters">
-                <span className="filter-label">Sorted by Usage %</span>
+                <span className="filter-label">Trié par utilisation</span>
               </div>
 
               <div className="cards-grid">
-                {cardStats.map((card, index) => (
-                  <div key={card.name} className="card-stat-item">
+                {cards.map((card, index) => (
+                  <div key={card.cardKey} className="card-stat-item">
                     <div className="card-rank">#{index + 1}</div>
                     <div className="card-image-container">
-                      <img src={`/Card/${card.image}`} alt={card.name} className="card-image" />
+                      <img
+                        src={`/Card/${card.cardKey}.png`}
+                        alt={card.cardName}
+                        className="card-image"
+                        onError={(e) => { e.target.style.display = 'none'; }}
+                      />
                     </div>
-                    <div className="card-name">{card.name}</div>
+                    <div className="card-name">{card.cardName}</div>
                     <div className="card-stats-row">
                       <div className="card-stat">
-                        <span className="stat-label">Matches</span>
-                        <span className="stat-value">{card.matches}</span>
+                        <span className="stat-label">Utilisé</span>
+                        <span className="stat-value">{card.totalUses}x</span>
                       </div>
                       <div className="card-stat">
-                        <span className="stat-label">Usage</span>
-                        <span className="stat-value">{card.usage}%</span>
+                        <span className="stat-label">Wins</span>
+                        <span className="stat-value positive">{card.wins}</span>
                       </div>
                       <div className="card-stat">
-                        <span className="stat-label">Win</span>
+                        <span className="stat-label">Win%</span>
                         <span className={`stat-value ${card.winRate >= 50 ? 'positive' : 'negative'}`}>{card.winRate}%</span>
                       </div>
                     </div>

@@ -1772,6 +1772,48 @@ body {
   gap: 1.5rem;
 }
 
+.cards-mode-selector {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 1rem;
+}
+
+.mode-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 0.8rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mode-btn:first-child {
+  border-radius: var(--radius) 0 0 var(--radius);
+  border-right: none;
+}
+
+.mode-btn:last-child {
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.mode-btn:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+
+.mode-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.mode-btn.active:hover {
+  background: var(--accent-hover);
+}
+
 .cards-header {
   text-align: center;
   margin-bottom: 1rem;
