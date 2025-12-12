@@ -1912,6 +1912,64 @@ body {
   font-size: 0.9rem;
 }
 
+.cards-meta {
+  margin-top: 1rem;
+}
+
+.meta-item {
+  font-size: 0.9rem;
+  color: var(--accent);
+  background: rgba(99, 102, 241, 0.1);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+}
+
+.cards-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  gap: 1rem;
+}
+
+.cards-loading p {
+  color: var(--text-secondary);
+}
+
+.cards-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--border);
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.cards-empty h3 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.cards-empty p {
+  color: var(--text-secondary);
+  max-width: 400px;
+}
+
+.empty-hint {
+  margin-top: 1rem;
+  color: var(--accent) !important;
+  font-weight: 500;
+}
+
 /* ============================================
    NEWS TAB
    ============================================ */
