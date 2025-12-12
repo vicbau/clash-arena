@@ -9,6 +9,7 @@ const { HttpsProxyAgent } = require('https-proxy-agent');
 
 const User = require('./models/User');
 const Match = require('./models/Match');
+const CardStat = require('./models/CardStat');
 
 // Configuration API Clash Royale
 const CLASH_API_BASE = 'https://api.clashroyale.com/v1';
@@ -121,10 +122,35 @@ async function verifyMatchResult(player1Tag, player2Tag, matchCreatedAt) {
 
           console.log('Valid match found! Crowns:', player1Crowns, 'vs', player2Crowns);
 
+          // Extract card data
+          const player1Cards = battle.team[0].cards || [];
+          const player2Cards = battle.opponent[0].cards || [];
+          const battleType = battle.type;
+          const gameMode = battle.gameMode ? battle.gameMode.name : 'Unknown';
+
+          console.log('Battle type:', battleType, '| Game mode:', gameMode);
+          console.log('Player1 cards:', player1Cards.length, '| Player2 cards:', player2Cards.length);
+
           if (player1Crowns > player2Crowns) {
-            return { found: true, winner: player1Tag, loser: player2Tag };
+            return {
+              found: true,
+              winner: player1Tag,
+              loser: player2Tag,
+              winnerCards: player1Cards,
+              loserCards: player2Cards,
+              battleType,
+              gameMode
+            };
           } else if (player2Crowns > player1Crowns) {
-            return { found: true, winner: player2Tag, loser: player1Tag };
+            return {
+              found: true,
+              winner: player2Tag,
+              loser: player1Tag,
+              winnerCards: player2Cards,
+              loserCards: player1Cards,
+              battleType,
+              gameMode
+            };
           } else {
             return { found: true, winner: null, loser: null, draw: true };
           }
@@ -138,6 +164,46 @@ async function verifyMatchResult(player1Tag, player2Tag, matchCreatedAt) {
     console.error('Erreur verification match:', error);
     return { found: false, error: error.message };
   }
+}
+
+// Function to update card statistics
+async function updateCardStats(cards, won, battleType) {
+  const battleCategory = getBattleCategory(battleType);
+
+  for (const card of cards) {
+    try {
+      const cardKey = card.name.toLowerCase().replace(/\s+/g, '_');
+
+      await CardStat.findOneAndUpdate(
+        { cardKey },
+        {
+          $set: {
+            cardName: card.name,
+            cardKey,
+            lastUpdated: new Date()
+          },
+          $inc: {
+            totalUses: 1,
+            wins: won ? 1 : 0,
+            losses: won ? 0 : 1,
+            [`battleTypes.${battleCategory}.uses`]: 1,
+            [`battleTypes.${battleCategory}.wins`]: won ? 1 : 0
+          }
+        },
+        { upsert: true, new: true }
+      );
+    } catch (err) {
+      console.error('Error updating card stat for', card.name, ':', err.message);
+    }
+  }
+}
+
+// Get battle category for stats
+function getBattleCategory(battleType) {
+  if (battleType === 'PvP' || battleType === 'pathOfLegend') return 'classic';
+  if (battleType === 'challenge') return 'challenge';
+  if (battleType.includes('friendly') || battleType.includes('Friendly')) return 'friendly';
+  return 'other';
 }
 
 const app = express();
@@ -468,6 +534,18 @@ app.post('/api/verify-match', async (req, res) => {
 
     console.log('Match verifie automatiquement: ' + winner.gamertag + ' bat ' + loser.gamertag);
 
+    // Update card statistics asynchronously (don't block the response)
+    if (result.winnerCards && result.winnerCards.length > 0) {
+      updateCardStats(result.winnerCards, true, result.battleType).catch(err => {
+        console.error('Error updating winner card stats:', err);
+      });
+    }
+    if (result.loserCards && result.loserCards.length > 0) {
+      updateCardStats(result.loserCards, false, result.battleType).catch(err => {
+        console.error('Error updating loser card stats:', err);
+      });
+    }
+
   } catch (error) {
     console.error('Erreur verification match:', error);
     res.status(500).json({ error: 'Erreur serveur' });
@@ -510,6 +588,39 @@ app.get('/api/leaderboard', async (req, res) => {
       losses: u.losses
     })));
   } catch (error) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Card statistics
+app.get('/api/card-stats', async (req, res) => {
+  try {
+    const cardStats = await CardStat.find()
+      .sort({ totalUses: -1 })
+      .lean();
+
+    // Calculate win rate and format response
+    const formattedStats = cardStats.map(card => {
+      const total = card.wins + card.losses;
+      const winRate = total > 0 ? Math.round((card.wins / total) * 100) : 0;
+
+      return {
+        cardName: card.cardName,
+        cardKey: card.cardKey,
+        imageFile: card.imageFile,
+        totalUses: card.totalUses,
+        wins: card.wins,
+        losses: card.losses,
+        winRate,
+        matches: total,
+        battleTypes: card.battleTypes,
+        lastUpdated: card.lastUpdated
+      };
+    });
+
+    res.json(formattedStats);
+  } catch (error) {
+    console.error('Error fetching card stats:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });

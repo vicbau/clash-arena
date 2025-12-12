@@ -888,37 +888,35 @@ function App() {
     );
   };
 
-  // Cards data - mapping card names to images
-  const cardsData = [
-    { name: 'Arrows', image: '/Cards/Arrows.png', usage: 28, winRate: 49, rating: 45 },
-    { name: 'Fireball', image: '/Cards/Card_Fireball.png', usage: 23, winRate: 50, rating: 51 },
-    { name: 'Zap', image: '/Cards/Card_Zap.png', usage: 18, winRate: 51, rating: 49 },
-    { name: 'The Log', image: '/Cards/Card_The_Log.png', usage: 45, winRate: 50, rating: 51 },
-    { name: 'Hog Rider', image: '/Cards/Card_Hog_Rider.png', usage: 15, winRate: 48, rating: 42 },
-    { name: 'Knight', image: '/Cards/Card_Knight.png', usage: 18, winRate: 51, rating: 53 },
-    { name: 'Musketeer', image: '/Cards/Card_Musketeer.png', usage: 14, winRate: 48, rating: 44 },
-    { name: 'Skeletons', image: '/Cards/Card_Skeletons.png', usage: 21, winRate: 50, rating: 48 },
-    { name: 'Ice Spirit', image: '/Cards/Card_Ice_Spirit.png', usage: 14, winRate: 48, rating: 44 },
-    { name: 'Valkyrie', image: '/Cards/Card_Valkyrie.png', usage: 12, winRate: 50, rating: 48 },
-    { name: 'Mini PEKKA', image: '/Cards/Card_Mini_PEKKA.png', usage: 11, winRate: 52, rating: 54 },
-    { name: 'Mega Knight', image: '/Cards/Card_Mega_Knight.png', usage: 10, winRate: 47, rating: 42 },
-    { name: 'Prince', image: '/Cards/Card_Prince.png', usage: 9, winRate: 49, rating: 46 },
-    { name: 'Princess', image: '/Cards/Card_Princess.png', usage: 8, winRate: 48, rating: 45 },
-    { name: 'Wizard', image: '/Cards/Card_Wizard.png', usage: 9, winRate: 46, rating: 40 },
-    { name: 'Baby Dragon', image: '/Cards/Baby_Dragon.png', usage: 10, winRate: 49, rating: 47 },
-    { name: 'Balloon', image: '/Cards/Balloon.png', usage: 8, winRate: 51, rating: 52 },
-    { name: 'Giant', image: '/Cards/Card_Giant.png', usage: 7, winRate: 50, rating: 49 },
-    { name: 'Goblin Barrel', image: '/Cards/Card_Goblin_Barrel.png', usage: 12, winRate: 49, rating: 47 },
-    { name: 'Witch', image: '/Cards/Card_Witch.png', usage: 8, winRate: 47, rating: 41 },
-    { name: 'PEKKA', image: '/Cards/Card_PEKKA.png', usage: 6, winRate: 51, rating: 50 },
-    { name: 'Golem', image: '/Cards/Card_Elixir_Golem.png', usage: 4, winRate: 52, rating: 53 },
-    { name: 'Royal Giant', image: '/Cards/Card_Royale_Giant.png', usage: 5, winRate: 50, rating: 48 },
-    { name: 'Electro Wizard', image: '/Cards/Card_Electro_Wizard.png', usage: 11, winRate: 49, rating: 47 },
-  ];
+  // State for card statistics
+  const [cardStats, setCardStats] = useState([]);
+  const [cardStatsLoading, setCardStatsLoading] = useState(false);
+
+  // Fetch card statistics from backend
+  const fetchCardStats = async () => {
+    setCardStatsLoading(true);
+    try {
+      const response = await fetch(API_URL + '/api/card-stats');
+      if (response.ok) {
+        const data = await response.json();
+        setCardStats(data);
+      }
+    } catch (err) {
+      console.error('Error fetching card stats:', err);
+    }
+    setCardStatsLoading(false);
+  };
+
+  // Fetch card stats when cards tab is opened
+  useEffect(() => {
+    if (activeTab === 'cards' && cardStats.length === 0) {
+      fetchCardStats();
+    }
+  }, [activeTab]);
 
   // Dashboard - Cards Tab
   const renderCardsTab = () => {
-    const sortedCards = [...cardsData].sort((a, b) => b.usage - a.usage);
+    const totalMatches = cardStats.reduce((sum, card) => sum + card.matches, 0) / 8; // 8 cards per deck
 
     return (
       <div className="tab-content">
@@ -926,45 +924,67 @@ function App() {
           <div className="cards-header">
             <h2>Card Statistics</h2>
             <p className="cards-subtitle">Usage and win rates from matches on Clash Arena</p>
+            <div className="cards-meta">
+              <span className="meta-item">Total Matches Tracked: {Math.round(totalMatches) || 0}</span>
+            </div>
           </div>
 
-          <div className="cards-filters">
-            <span className="filter-label">Sorted by Usage %</span>
-          </div>
-
-          <div className="cards-grid">
-            {sortedCards.map((card, index) => (
-              <div key={card.name} className="card-stat-item">
-                <div className="card-rank">#{index + 1}</div>
-                <div className="card-image-container">
-                  <img src={card.image} alt={card.name} className="card-image" />
-                </div>
-                <div className="card-name">{card.name}</div>
-                <div className="card-stats-row">
-                  <div className="card-stat">
-                    <span className="stat-label">Rating</span>
-                    <span className="stat-value">{card.rating}</span>
-                  </div>
-                  <div className="card-stat">
-                    <span className="stat-label">Usage</span>
-                    <span className="stat-value">{card.usage}%</span>
-                  </div>
-                  <div className="card-stat">
-                    <span className="stat-label">Win</span>
-                    <span className={`stat-value ${card.winRate >= 50 ? 'positive' : 'negative'}`}>{card.winRate}%</span>
-                  </div>
-                </div>
+          {cardStatsLoading ? (
+            <div className="cards-loading">
+              <div className="searching-spinner"></div>
+              <p>Loading card statistics...</p>
+            </div>
+          ) : cardStats.length === 0 ? (
+            <div className="cards-empty">
+              <div className="empty-icon">🃏</div>
+              <h3>No Data Yet</h3>
+              <p>Card statistics will appear here once matches are played and verified on Clash Arena.</p>
+              <p className="empty-hint">Play matches to start tracking card usage and win rates!</p>
+            </div>
+          ) : (
+            <>
+              <div className="cards-filters">
+                <span className="filter-label">Sorted by Usage %</span>
               </div>
-            ))}
-          </div>
 
-          <div className="cards-note">
-            <p>Statistics are based on matches played on Clash Arena. More data coming soon!</p>
-          </div>
+              <div className="cards-grid">
+                {cardStats.map((card, index) => (
+                  <div key={card.name} className="card-stat-item">
+                    <div className="card-rank">#{index + 1}</div>
+                    <div className="card-image-container">
+                      <img src={`/Card/${card.image}`} alt={card.name} className="card-image" />
+                    </div>
+                    <div className="card-name">{card.name}</div>
+                    <div className="card-stats-row">
+                      <div className="card-stat">
+                        <span className="stat-label">Matches</span>
+                        <span className="stat-value">{card.matches}</span>
+                      </div>
+                      <div className="card-stat">
+                        <span className="stat-label">Usage</span>
+                        <span className="stat-value">{card.usage}%</span>
+                      </div>
+                      <div className="card-stat">
+                        <span className="stat-label">Win</span>
+                        <span className={`stat-value ${card.winRate >= 50 ? 'positive' : 'negative'}`}>{card.winRate}%</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
     );
   };
+
+  // Reload Twitter widget when news tab is shown
+  useEffect(() => {
+    if (activeTab === 'news' && window.twttr && window.twttr.widgets) {
+      window.twttr.widgets.load();
+    }
+  }, [activeTab]);
 
   // Dashboard - News Tab
   const renderNewsTab = () => {
@@ -981,10 +1001,11 @@ function App() {
               <a
                 className="twitter-timeline"
                 data-theme="dark"
-                data-chrome="noheader nofooter noborders transparent"
-                href="https://twitter.com/ClashRoyale"
+                data-height="600"
+                data-chrome="noheader nofooter transparent"
+                href="https://twitter.com/ClashRoyale?ref_src=twsrc%5Etfw"
               >
-                Loading tweets...
+                Tweets by ClashRoyale
               </a>
             </div>
 
