@@ -385,6 +385,20 @@ function App() {
           <span className="sidebar-icon">📊</span>
           <span>Track</span>
         </button>
+        <button
+          className={`sidebar-item ${activeTab === 'cards' ? 'active' : ''}`}
+          onClick={() => setActiveTab('cards')}
+        >
+          <span className="sidebar-icon">🃏</span>
+          <span>Cards</span>
+        </button>
+        <button
+          className={`sidebar-item ${activeTab === 'news' ? 'active' : ''}`}
+          onClick={() => setActiveTab('news')}
+        >
+          <span className="sidebar-icon">📰</span>
+          <span>News</span>
+        </button>
       </nav>
 
       <div className="sidebar-footer">
@@ -874,6 +888,127 @@ function App() {
     );
   };
 
+  // Cards data - mapping card names to images
+  const cardsData = [
+    { name: 'Arrows', image: '/Cards/Arrows.png', usage: 28, winRate: 49, rating: 45 },
+    { name: 'Fireball', image: '/Cards/Card_Fireball.png', usage: 23, winRate: 50, rating: 51 },
+    { name: 'Zap', image: '/Cards/Card_Zap.png', usage: 18, winRate: 51, rating: 49 },
+    { name: 'The Log', image: '/Cards/Card_The_Log.png', usage: 45, winRate: 50, rating: 51 },
+    { name: 'Hog Rider', image: '/Cards/Card_Hog_Rider.png', usage: 15, winRate: 48, rating: 42 },
+    { name: 'Knight', image: '/Cards/Card_Knight.png', usage: 18, winRate: 51, rating: 53 },
+    { name: 'Musketeer', image: '/Cards/Card_Musketeer.png', usage: 14, winRate: 48, rating: 44 },
+    { name: 'Skeletons', image: '/Cards/Card_Skeletons.png', usage: 21, winRate: 50, rating: 48 },
+    { name: 'Ice Spirit', image: '/Cards/Card_Ice_Spirit.png', usage: 14, winRate: 48, rating: 44 },
+    { name: 'Valkyrie', image: '/Cards/Card_Valkyrie.png', usage: 12, winRate: 50, rating: 48 },
+    { name: 'Mini PEKKA', image: '/Cards/Card_Mini_PEKKA.png', usage: 11, winRate: 52, rating: 54 },
+    { name: 'Mega Knight', image: '/Cards/Card_Mega_Knight.png', usage: 10, winRate: 47, rating: 42 },
+    { name: 'Prince', image: '/Cards/Card_Prince.png', usage: 9, winRate: 49, rating: 46 },
+    { name: 'Princess', image: '/Cards/Card_Princess.png', usage: 8, winRate: 48, rating: 45 },
+    { name: 'Wizard', image: '/Cards/Card_Wizard.png', usage: 9, winRate: 46, rating: 40 },
+    { name: 'Baby Dragon', image: '/Cards/Baby_Dragon.png', usage: 10, winRate: 49, rating: 47 },
+    { name: 'Balloon', image: '/Cards/Balloon.png', usage: 8, winRate: 51, rating: 52 },
+    { name: 'Giant', image: '/Cards/Card_Giant.png', usage: 7, winRate: 50, rating: 49 },
+    { name: 'Goblin Barrel', image: '/Cards/Card_Goblin_Barrel.png', usage: 12, winRate: 49, rating: 47 },
+    { name: 'Witch', image: '/Cards/Card_Witch.png', usage: 8, winRate: 47, rating: 41 },
+    { name: 'PEKKA', image: '/Cards/Card_PEKKA.png', usage: 6, winRate: 51, rating: 50 },
+    { name: 'Golem', image: '/Cards/Card_Elixir_Golem.png', usage: 4, winRate: 52, rating: 53 },
+    { name: 'Royal Giant', image: '/Cards/Card_Royale_Giant.png', usage: 5, winRate: 50, rating: 48 },
+    { name: 'Electro Wizard', image: '/Cards/Card_Electro_Wizard.png', usage: 11, winRate: 49, rating: 47 },
+  ];
+
+  // Dashboard - Cards Tab
+  const renderCardsTab = () => {
+    const sortedCards = [...cardsData].sort((a, b) => b.usage - a.usage);
+
+    return (
+      <div className="tab-content">
+        <div className="cards-container">
+          <div className="cards-header">
+            <h2>Card Statistics</h2>
+            <p className="cards-subtitle">Usage and win rates from matches on Clash Arena</p>
+          </div>
+
+          <div className="cards-filters">
+            <span className="filter-label">Sorted by Usage %</span>
+          </div>
+
+          <div className="cards-grid">
+            {sortedCards.map((card, index) => (
+              <div key={card.name} className="card-stat-item">
+                <div className="card-rank">#{index + 1}</div>
+                <div className="card-image-container">
+                  <img src={card.image} alt={card.name} className="card-image" />
+                </div>
+                <div className="card-name">{card.name}</div>
+                <div className="card-stats-row">
+                  <div className="card-stat">
+                    <span className="stat-label">Rating</span>
+                    <span className="stat-value">{card.rating}</span>
+                  </div>
+                  <div className="card-stat">
+                    <span className="stat-label">Usage</span>
+                    <span className="stat-value">{card.usage}%</span>
+                  </div>
+                  <div className="card-stat">
+                    <span className="stat-label">Win</span>
+                    <span className={`stat-value ${card.winRate >= 50 ? 'positive' : 'negative'}`}>{card.winRate}%</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="cards-note">
+            <p>Statistics are based on matches played on Clash Arena. More data coming soon!</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Dashboard - News Tab
+  const renderNewsTab = () => {
+    return (
+      <div className="tab-content">
+        <div className="news-container">
+          <div className="news-header">
+            <h2>Clash Royale News</h2>
+            <p className="news-subtitle">Latest updates from the official Clash Royale Twitter</p>
+          </div>
+
+          <div className="news-content">
+            <div className="twitter-embed">
+              <a
+                className="twitter-timeline"
+                data-theme="dark"
+                data-chrome="noheader nofooter noborders transparent"
+                href="https://twitter.com/ClashRoyale"
+              >
+                Loading tweets...
+              </a>
+            </div>
+
+            <div className="news-links">
+              <h3>Quick Links</h3>
+              <a href="https://twitter.com/ClashRoyale" target="_blank" rel="noopener noreferrer" className="news-link">
+                <span>🐦</span> Official Twitter
+              </a>
+              <a href="https://www.reddit.com/r/ClashRoyale/" target="_blank" rel="noopener noreferrer" className="news-link">
+                <span>📱</span> Reddit Community
+              </a>
+              <a href="https://royaleapi.com/blog" target="_blank" rel="noopener noreferrer" className="news-link">
+                <span>📊</span> RoyaleAPI Blog
+              </a>
+              <a href="https://clashroyale.com/blog" target="_blank" rel="noopener noreferrer" className="news-link">
+                <span>📰</span> Official Blog
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Dashboard
   const renderDashboard = () => {
     if (!currentUser) return null;
@@ -885,6 +1020,8 @@ function App() {
           {activeTab === 'play' && renderPlayTab()}
           {activeTab === 'leaderboard' && renderLeaderboardTab()}
           {activeTab === 'track' && renderTrackTab()}
+          {activeTab === 'cards' && renderCardsTab()}
+          {activeTab === 'news' && renderNewsTab()}
         </main>
       </div>
     );
