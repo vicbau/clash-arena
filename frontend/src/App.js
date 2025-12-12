@@ -888,37 +888,479 @@ function App() {
     );
   };
 
-  // State for card statistics
-  const [cardStats, setCardStats] = useState({ cards: [], totalBattles: 0, mode: '' });
-  const [cardStatsLoading, setCardStatsLoading] = useState(false);
-  const [cardMode, setCardMode] = useState('tripleDraft'); // 'tripleDraft' or 'classic'
-
-  // Fetch card statistics from backend
-  const fetchCardStats = async (mode) => {
-    setCardStatsLoading(true);
-    try {
-      const response = await fetch(API_URL + '/api/card-stats/' + mode);
-      if (response.ok) {
-        const data = await response.json();
-        setCardStats(data);
-      }
-    } catch (err) {
-      console.error('Error fetching card stats:', err);
-    }
-    setCardStatsLoading(false);
+  // Card image mapping
+  const cardImageMap = {
+    'Mega Knight': 'MegaKnight.webp',
+    'Battle Ram': 'BattleRam.webp',
+    'Electro Giant': 'ElectroGiant.webp',
+    'Giant': 'Giant.webp',
+    'Goblin Giant': 'GoblinGiant.webp',
+    'Royal Hogs': 'RoyalHogs.webp',
+    'Hog Rider': 'HogRider.webp',
+    'Golem': 'Golem.webp',
+    'Royal Giant': 'RG.webp',
+    'Ram Rider': 'Ram.webp',
+    'Elixir Golem': 'ElixirGolem.webp',
+    'Goblin Barrel': 'GoblinBarrel.webp',
+    'Balloon': 'Balloon.webp',
+    'Wall Breakers': 'WallBreakers.webp',
+    'Mortar': 'Mortar.webp',
+    'Goblin Drill': 'GoblinDrill.webp',
+    'X-Bow': 'XBOW.webp',
+    'Lava Hound': 'Lava.webp',
+    'Graveyard': 'GraveYard.webp',
+    'Royal Delivery': 'RoyalDelivery.webp',
+    'The Log': 'Log.webp',
+    'Barbarian Barrel': 'BarbBarrel.webp',
+    'Arrows': 'Arrows.webp',
+    'Zap': 'Zap.webp',
+    'Goblin Curse': 'GoblinCurse.webp',
+    'Giant Snowball': 'Snowball.webp',
+    'Void': 'Void.webp',
+    'Tornado': 'Tornado.webp',
+    'Lightning': 'Lightning.webp',
+    'Fireball': 'Fireball.webp',
+    'Poison': 'Poison.webp',
+    'Freeze': 'Freeze.webp',
+    'Earthquake': 'Earthquake.webp',
+    'Rocket': 'Rocket.webp',
+    'Musketeer': 'Musk.webp',
+    'Minion Horde': 'MM.webp',
+    'Witch': 'Witch.webp',
+    'Zappies': 'Zapper.webp',
+    'Executioner': 'Executioner.webp',
+    'Electro Wizard': 'ElectroWiz.webp',
+    'Baby Dragon': 'BabyD.webp',
+    'Hunter': 'Hunter.webp',
+    'Skeleton Dragons': 'SkeletonDragons.webp',
+    'Wizard': 'Wiz.webp',
+    'Phoenix': 'Phoenix.webp',
+    'Magic Archer': 'MagicArcher.webp',
+    'Electro Dragon': 'ElectroDragon.webp',
+    'Inferno Dragon': 'Inferno.webp',
+    'Dart Goblin': 'DartGob.webp',
+    'Firecracker': 'Firecracker.webp',
+    'Flying Machine': 'FlyingMachine.webp',
+    'Minions': 'Minions.webp',
+    'Archers': 'Archers.webp',
+    'Bats': 'Bats.webp',
+    'Mega Minion': 'MegaMinion.webp',
+    'Ice Wizard': 'IceWiz.webp',
+    'Spear Goblins': 'SpearGobs.webp',
+    'Princess': 'Princess.webp',
+    'Cannon Cart': 'CannonCart.webp',
+    'Bowler': 'Bowler.webp',
+    'Bandit': 'Bandit.webp',
+    'Goblin Demolisher': 'GoblinKnight.webp',
+    'Sparky': 'Sparky.webp',
+    'Bomber': 'Bomber.webp',
+    'Mother Witch': 'MotherWitch.webp',
+    'Night Witch': 'NightWitch.webp',
+    'Rage': 'Rage.webp',
+    'Elixir Collector': 'Pump.webp',
+    'Elite Barbarians': 'EliteBarbs.webp',
+    'Royal Recruits': 'RoyalRecruit.webp',
+    'Mini P.E.K.K.A': 'MP.webp',
+    'Lumberjack': 'Lumberjack.webp',
+    'P.E.K.K.A': 'PEKKA.webp',
+    'Goblin Cage': 'GoblinCage.webp',
+    'Furnace': 'Furnace.webp',
+    'Goblin Hut': 'GoblinHut.webp',
+    'Bomb Tower': 'BombTower.webp',
+    'Barbarians': 'Barbs.webp',
+    'Cannon': 'Cannon.webp',
+    'Barbarian Hut': 'BarbHut.webp',
+    'Tesla': 'Tesla.webp',
+    'Inferno Tower': 'InfernoTower.webp',
+    'Rascals': 'Rascals.webp',
+    'Prince': 'Prince.webp',
+    'Dark Prince': 'DarkPrince.webp',
+    'Knight': 'Knight.webp',
+    'Valkyrie': 'Valk.webp',
+    'Royal Ghost': 'Ghost.webp',
+    'Goblin Machine': 'GoblinMachine.webp',
+    'Battle Healer': 'BattleHealer.webp',
+    'Ice Golem': 'IceGolem.webp',
+    'Fisherman': 'Fisherman.webp',
+    'Miner': 'Miner.webp',
+    'Goblin Gang': 'GoblinGang.webp',
+    'Guards': 'Guards.webp',
+    'Skeleton Barrel': 'SkellyBarrel.webp',
+    'Electro Spirit': 'ElectroSpirit.webp',
+    'Fire Spirit': 'FireSpirit.webp',
+    'Ice Spirit': 'IceSpirit.webp',
+    'Goblins': 'Goblins.webp',
+    'Tombstone': 'Tombstone.webp',
+    'Skeleton Army': 'SkellyArmy.webp',
+    'Skeletons': 'Skeletons.webp',
+    'Heal Spirit': 'HealSpirit.webp',
+    'Three Musketeers': '3M.webp',
+    'Archer Queen': 'ArchQueen.webp',
+    'Golden Knight': 'GoldenKnight.webp',
+    'Skeleton King': 'SkeletonKing.webp',
+    'Mighty Miner': 'MightyMiner.webp',
+    'Little Prince': 'LittlePrince.webp',
+    'Giant Skeleton': 'GiantSkelly.webp',
+    'Clone': 'Clone.webp',
+    'Mirror': 'Mirror.webp',
+    'Vines': 'Vipers.webp',
+    'Suspicious Bush': 'SupiciousBank.webp',
+    // Evolution cards
+    'Zap Evolution': 'Zap.evo.webp',
+    'Skeleton Barrel Evolution': 'SkellyBarrel.evo.webp',
+    'Mortar Evolution': 'Mortar.evo.webp',
+    'Baby Dragon Evolution': 'BabyD.evo.webp',
+    'Witch Evolution': 'Witch.evo.webp',
+    'Royal Ghost Evolution': 'Ghost.evo.webp',
+    'Battle Ram Evolution': 'BattleRam.evo.webp',
+    'Electro Dragon Evolution': 'ElectroDragon.evo.webp',
+    'Skeleton Army Evolution': 'Skeletons.evo.webp',
+    'Inferno Dragon Evolution': 'Inferno.evo.webp',
+    'Wizard Evolution': 'Wiz.evo.webp',
+    'Royal Hogs Evolution': 'RoyalHogs.evo.webp',
+    'Goblin Cage Evolution': 'GoblinCage.evo.webp',
+    'Lumberjack Evolution': 'Lumberjack.evo.webp',
+    'Furnace Evolution': 'Furnace.evo.webp',
+    'Goblin Giant Evolution': 'GoblinGiant.evo.webp',
+    'Bats Evolution': 'Bats.evo.webp',
+    'Valkyrie Evolution': 'Valk.evo.webp',
+    'Royal Giant Evolution': 'RG.evo.webp',
+    'Giant Snowball Evolution': 'Snowball.evo.webp',
+    'Bomber Evolution': 'Bomber.evo.webp',
+    'Hunter Evolution': 'Hunter.evo.webp',
+    'Musketeer Evolution': 'Musk.evo.webp',
+    'Goblin Drill Evolution': 'GoblinDrill.evo.webp',
+    'Wall Breakers Evolution': 'WallBreakers.evo.webp',
+    'Archers Evolution': 'Archers.evo.webp',
+    'Firecracker Evolution': 'Firecracker.evo.webp',
+    'Skeletons Evolution': 'Skeletons.evo.webp',
+    'P.E.K.K.A Evolution': 'PEKKA.evo.webp',
+    'Dart Goblin Evolution': 'DartGob.evo.webp',
+    'Goblin Barrel Evolution': 'GoblinBarrel.evo.webp',
+    'Tesla Evolution': 'Tesla.evo.webp',
+    'Cannon Evolution': 'Cannon.evo.webp',
+    'Knight Evolution': 'Knight.evo.webp',
+    'Ice Spirit Evolution': 'IceSpirit.evo.webp',
+    'Mega Knight Evolution': 'MegaKnight.evo.webp',
+    'Executioner Evolution': 'Executioner.evo.webp',
+    'Royal Recruits Evolution': 'RoyalRecruit.evo.webp',
+    'Barbarians Evolution': 'Barbs.evo.webp',
+    // Heroes
+    'Hero Giant': 'Giant.webp',
+    'Hero Mini P.E.K.K.A': 'MP.webp',
+    'Hero Musketeer': 'Musk.webp',
+    'Hero Knight': 'Knight.webp',
+    // Special cards
+    'Dagger Duchess': 'DaggerDuchess.webp',
+    'Cannoneer': 'Cannoneer.webp',
+    'Spirit Empress': 'SpiritEspinense.webp',
+    'Boss Bandit': 'Bandit.webp',
+    'Monk': 'Monk.webp',
+    'Berserker': 'Berserker.webp',
+    'Royal Chef': 'RoyalChef.webp',
+    'Goblinstein': 'Goblinstein.webp',
+    'Rune Giant': 'RuneGiant.webp',
+    'Tower Princess': 'TowerPrincess.webp'
   };
 
-  // Fetch card stats when cards tab is opened or mode changes
-  useEffect(() => {
-    if (activeTab === 'cards') {
-      fetchCardStats(cardMode);
-    }
-  }, [activeTab, cardMode]);
+  // Static Triple Draft data
+  const tripleDraftData = [
+    { name: 'Mega Knight', rating: 69, usage: 11, win: 57 },
+    { name: 'Battle Ram', rating: 58, usage: 5, win: 54 },
+    { name: 'Electro Giant', rating: 55, usage: 5, win: 53 },
+    { name: 'Giant', rating: 55, usage: 3, win: 52 },
+    { name: 'Goblin Giant', rating: 52, usage: 3, win: 51 },
+    { name: 'Royal Hogs', rating: 52, usage: 8, win: 51 },
+    { name: 'Hog Rider', rating: 52, usage: 10, win: 51 },
+    { name: 'Golem', rating: 50, usage: 4, win: 50 },
+    { name: 'Royal Giant', rating: 49, usage: 5, win: 50 },
+    { name: 'Ram Rider', rating: 48, usage: 6, win: 50 },
+    { name: 'Elixir Golem', rating: 45, usage: 5, win: 49 },
+    { name: 'Goblin Barrel', rating: 45, usage: 7, win: 49 },
+    { name: 'Balloon', rating: 44, usage: 6, win: 48 },
+    { name: 'Wall Breakers', rating: 41, usage: 6, win: 47 },
+    { name: 'Mortar', rating: 41, usage: 3, win: 47 },
+    { name: 'Goblin Drill', rating: 38, usage: 4, win: 46 },
+    { name: 'X-Bow', rating: 33, usage: 4, win: 44 },
+    { name: 'Lava Hound', rating: 24, usage: 1, win: 39 },
+    { name: 'Graveyard', rating: 19, usage: 3, win: 37 },
+    { name: 'Royal Delivery', rating: 61, usage: 16, win: 54 },
+    { name: 'The Log', rating: 57, usage: 21, win: 52 },
+    { name: 'Barbarian Barrel', rating: 54, usage: 15, win: 52 },
+    { name: 'Arrows', rating: 51, usage: 13, win: 50 },
+    { name: 'Zap', rating: 48, usage: 8, win: 50 },
+    { name: 'Goblin Curse', rating: 46, usage: 6, win: 49 },
+    { name: 'Giant Snowball', rating: 43, usage: 9, win: 48 },
+    { name: 'Void', rating: 26, usage: 3, win: 40 },
+    { name: 'Tornado', rating: 23, usage: 9, win: 39 },
+    { name: 'Lightning', rating: 54, usage: 10, win: 52 },
+    { name: 'Fireball', rating: 55, usage: 31, win: 51 },
+    { name: 'Poison', rating: 53, usage: 15, win: 51 },
+    { name: 'Freeze', rating: 49, usage: 19, win: 50 },
+    { name: 'Earthquake', rating: 43, usage: 12, win: 48 },
+    { name: 'Rocket', rating: 37, usage: 14, win: 45 },
+    { name: 'Musketeer', rating: 58, usage: 8, win: 53 },
+    { name: 'Minion Horde', rating: 55, usage: 4, win: 52 },
+    { name: 'Witch', rating: 55, usage: 12, win: 52 },
+    { name: 'Zappies', rating: 53, usage: 7, win: 52 },
+    { name: 'Executioner', rating: 49, usage: 11, win: 50 },
+    { name: 'Electro Wizard', rating: 49, usage: 11, win: 50 },
+    { name: 'Baby Dragon', rating: 48, usage: 7, win: 50 },
+    { name: 'Hunter', rating: 48, usage: 7, win: 50 },
+    { name: 'Skeleton Dragons', rating: 46, usage: 3, win: 49 },
+    { name: 'Wizard', rating: 46, usage: 8, win: 49 },
+    { name: 'Phoenix', rating: 43, usage: 4, win: 48 },
+    { name: 'Magic Archer', rating: 42, usage: 9, win: 47 },
+    { name: 'Electro Dragon', rating: 41, usage: 5, win: 47 },
+    { name: 'Inferno Dragon', rating: 41, usage: 7, win: 47 },
+    { name: 'Dart Goblin', rating: 58, usage: 19, win: 53 },
+    { name: 'Firecracker', rating: 54, usage: 16, win: 52 },
+    { name: 'Flying Machine', rating: 53, usage: 5, win: 51 },
+    { name: 'Minions', rating: 52, usage: 7, win: 51 },
+    { name: 'Archers', rating: 48, usage: 6, win: 50 },
+    { name: 'Bats', rating: 48, usage: 9, win: 49 },
+    { name: 'Mega Minion', rating: 46, usage: 4, win: 49 },
+    { name: 'Ice Wizard', rating: 43, usage: 12, win: 48 },
+    { name: 'Spear Goblins', rating: 43, usage: 5, win: 48 },
+    { name: 'Princess', rating: 41, usage: 14, win: 47 },
+    { name: 'Cannon Cart', rating: 66, usage: 5, win: 57 },
+    { name: 'Bowler', rating: 59, usage: 11, win: 53 },
+    { name: 'Bandit', rating: 58, usage: 13, win: 53 },
+    { name: 'Goblin Demolisher', rating: 53, usage: 5, win: 52 },
+    { name: 'Sparky', rating: 50, usage: 11, win: 50 },
+    { name: 'Bomber', rating: 44, usage: 7, win: 48 },
+    { name: 'Mother Witch', rating: 42, usage: 8, win: 47 },
+    { name: 'Night Witch', rating: 38, usage: 6, win: 46 },
+    { name: 'Rage', rating: 32, usage: 7, win: 43 },
+    { name: 'Elixir Collector', rating: 29, usage: 3, win: 42 },
+    { name: 'Elite Barbarians', rating: 63, usage: 6, win: 55 },
+    { name: 'Royal Recruits', rating: 60, usage: 5, win: 54 },
+    { name: 'Mini P.E.K.K.A', rating: 61, usage: 10, win: 54 },
+    { name: 'Lumberjack', rating: 57, usage: 7, win: 53 },
+    { name: 'P.E.K.K.A', rating: 56, usage: 7, win: 53 },
+    { name: 'Goblin Cage', rating: 49, usage: 4, win: 50 },
+    { name: 'Furnace', rating: 44, usage: 5, win: 48 },
+    { name: 'Goblin Hut', rating: 42, usage: 4, win: 47 },
+    { name: 'Bomb Tower', rating: 41, usage: 5, win: 47 },
+    { name: 'Barbarians', rating: 40, usage: 3, win: 47 },
+    { name: 'Cannon', rating: 39, usage: 7, win: 46 },
+    { name: 'Barbarian Hut', rating: 35, usage: 1, win: 45 },
+    { name: 'Tesla', rating: 35, usage: 7, win: 44 },
+    { name: 'Inferno Tower', rating: 33, usage: 5, win: 44 },
+    { name: 'Rascals', rating: 60, usage: 4, win: 54 },
+    { name: 'Prince', rating: 61, usage: 10, win: 54 },
+    { name: 'Dark Prince', rating: 60, usage: 8, win: 54 },
+    { name: 'Knight', rating: 54, usage: 11, win: 52 },
+    { name: 'Valkyrie', rating: 52, usage: 11, win: 51 },
+    { name: 'Royal Ghost', rating: 52, usage: 8, win: 51 },
+    { name: 'Goblin Machine', rating: 40, usage: 4, win: 47 },
+    { name: 'Battle Healer', rating: 40, usage: 4, win: 47 },
+    { name: 'Ice Golem', rating: 36, usage: 5, win: 45 },
+    { name: 'Fisherman', rating: 36, usage: 5, win: 45 },
+    { name: 'Miner', rating: 24, usage: 6, win: 40 },
+    { name: 'Goblin Gang', rating: 55, usage: 11, win: 52 },
+    { name: 'Guards', rating: 52, usage: 11, win: 51 },
+    { name: 'Skeleton Barrel', rating: 51, usage: 9, win: 51 },
+    { name: 'Electro Spirit', rating: 47, usage: 6, win: 49 },
+    { name: 'Fire Spirit', rating: 47, usage: 4, win: 49 },
+    { name: 'Ice Spirit', rating: 47, usage: 9, win: 49 },
+    { name: 'Goblins', rating: 46, usage: 3, win: 49 },
+    { name: 'Tombstone', rating: 46, usage: 6, win: 49 },
+    { name: 'Skeleton Army', rating: 46, usage: 9, win: 49 },
+    { name: 'Skeletons', rating: 46, usage: 7, win: 49 },
+    { name: 'Heal Spirit', rating: 41, usage: 2, win: 47 }
+  ];
+
+  // Static Classic Challenge data
+  const classicData = [
+    { name: 'Rascals', rating: 70, usage: 2, win: 59 },
+    { name: 'Zap Evolution', rating: 70, usage: 9, win: 58 },
+    { name: 'Three Musketeers', rating: 67, usage: 2, win: 58 },
+    { name: 'Zappies', rating: 65, usage: 4, win: 57 },
+    { name: 'Minion Horde', rating: 64, usage: 4, win: 56 },
+    { name: 'Skeleton Barrel Evolution', rating: 65, usage: 10, win: 56 },
+    { name: 'Elixir Collector', rating: 64, usage: 9, win: 56 },
+    { name: 'Dark Prince', rating: 63, usage: 5, win: 56 },
+    { name: 'Suspicious Bush', rating: 63, usage: 4, win: 56 },
+    { name: 'Heal Spirit', rating: 63, usage: 5, win: 56 },
+    { name: 'Flying Machine', rating: 61, usage: 2, win: 55 },
+    { name: 'Cannon Cart', rating: 61, usage: 2, win: 55 },
+    { name: 'Golem', rating: 62, usage: 6, win: 55 },
+    { name: 'Minions', rating: 63, usage: 11, win: 55 },
+    { name: 'Hero Giant', rating: 63, usage: 13, win: 55 },
+    { name: 'Mortar Evolution', rating: 61, usage: 6, win: 55 },
+    { name: 'Baby Dragon Evolution', rating: 61, usage: 6, win: 55 },
+    { name: 'Mega Minion', rating: 59, usage: 2, win: 55 },
+    { name: 'Sparky', rating: 61, usage: 7, win: 54 },
+    { name: 'Witch Evolution', rating: 62, usage: 13, win: 54 },
+    { name: 'Royal Ghost Evolution', rating: 61, usage: 10, win: 54 },
+    { name: 'Vines', rating: 61, usage: 12, win: 54 },
+    { name: 'Bowler', rating: 59, usage: 4, win: 54 },
+    { name: 'Battle Ram Evolution', rating: 59, usage: 3, win: 54 },
+    { name: 'Skeleton King', rating: 59, usage: 5, win: 54 },
+    { name: 'Mother Witch', rating: 58, usage: 3, win: 54 },
+    { name: 'Giant', rating: 57, usage: 1, win: 54 },
+    { name: 'Giant Skeleton', rating: 57, usage: 2, win: 54 },
+    { name: 'Battle Healer', rating: 58, usage: 3, win: 54 },
+    { name: 'Lava Hound', rating: 57, usage: 1, win: 54 },
+    { name: 'Lightning', rating: 58, usage: 5, win: 54 },
+    { name: 'Electro Dragon Evolution', rating: 58, usage: 3, win: 54 },
+    { name: 'Barbarian Barrel', rating: 61, usage: 21, win: 54 },
+    { name: 'Royal Recruits', rating: 56, usage: 1, win: 54 },
+    { name: 'Night Witch', rating: 56, usage: 2, win: 53 },
+    { name: 'Dart Goblin', rating: 58, usage: 9, win: 53 },
+    { name: 'Arrows', rating: 59, usage: 16, win: 53 },
+    { name: 'Royal Recruits Evolution', rating: 56, usage: 2, win: 53 },
+    { name: 'Skeleton Army Evolution', rating: 58, usage: 13, win: 53 },
+    { name: 'Hero Mini P.E.K.K.A', rating: 60, usage: 34, win: 53 },
+    { name: 'Inferno Dragon Evolution', rating: 55, usage: 3, win: 53 },
+    { name: 'Wizard Evolution', rating: 55, usage: 2, win: 53 },
+    { name: 'Dagger Duchess', rating: 55, usage: 2, win: 53 },
+    { name: 'Wall Breakers', rating: 54, usage: 4, win: 52 },
+    { name: 'Cannoneer', rating: 53, usage: 2, win: 52 },
+    { name: 'Rage', rating: 55, usage: 7, win: 52 },
+    { name: 'Tombstone', rating: 53, usage: 2, win: 52 },
+    { name: 'Phoenix', rating: 51, usage: 0, win: 52 },
+    { name: 'Executioner Evolution', rating: 54, usage: 5, win: 52 },
+    { name: 'Bats Evolution', rating: 53, usage: 2, win: 52 },
+    { name: 'Skeleton Dragons', rating: 52, usage: 1, win: 52 },
+    { name: 'Royal Hogs Evolution', rating: 54, usage: 5, win: 52 },
+    { name: 'Golden Knight', rating: 53, usage: 5, win: 52 },
+    { name: 'Goblin Cage Evolution', rating: 53, usage: 3, win: 52 },
+    { name: 'Zap', rating: 53, usage: 5, win: 52 },
+    { name: 'Goblin Cage', rating: 51, usage: 1, win: 51 },
+    { name: 'Lumberjack Evolution', rating: 52, usage: 3, win: 51 },
+    { name: 'Ram Rider', rating: 51, usage: 2, win: 51 },
+    { name: 'Guards', rating: 52, usage: 4, win: 51 },
+    { name: 'Bomb Tower', rating: 52, usage: 4, win: 51 },
+    { name: 'Spirit Empress', rating: 49, usage: 1, win: 51 },
+    { name: 'Hunter', rating: 50, usage: 2, win: 51 },
+    { name: 'Furnace Evolution', rating: 50, usage: 2, win: 51 },
+    { name: 'Battle Ram', rating: 47, usage: 1, win: 51 },
+    { name: 'Goblin Giant Evolution', rating: 48, usage: 1, win: 50 },
+    { name: 'Goblin Hut', rating: 50, usage: 4, win: 50 },
+    { name: 'Goblin Demolisher', rating: 49, usage: 3, win: 50 },
+    { name: 'Bats', rating: 49, usage: 4, win: 50 },
+    { name: 'Tower Princess', rating: 50, usage: 93, win: 50 },
+    { name: 'Graveyard', rating: 49, usage: 6, win: 50 },
+    { name: 'Electro Giant', rating: 47, usage: 1, win: 50 },
+    { name: 'Electro Wizard', rating: 49, usage: 4, win: 50 },
+    { name: 'Balloon', rating: 49, usage: 5, win: 50 },
+    { name: 'Prince', rating: 48, usage: 2, win: 50 },
+    { name: 'P.E.K.K.A', rating: 47, usage: 2, win: 50 },
+    { name: 'Royal Hogs', rating: 47, usage: 1, win: 50 },
+    { name: 'Fire Spirit', rating: 48, usage: 8, win: 50 },
+    { name: 'Bandit', rating: 48, usage: 3, win: 50 },
+    { name: 'Tornado', rating: 48, usage: 9, win: 50 },
+    { name: 'Boss Bandit', rating: 48, usage: 5, win: 50 },
+    { name: 'Lumberjack', rating: 46, usage: 1, win: 49 },
+    { name: 'Bomber Evolution', rating: 46, usage: 1, win: 49 },
+    { name: 'Fisherman', rating: 47, usage: 4, win: 49 },
+    { name: 'Valkyrie Evolution', rating: 47, usage: 6, win: 49 },
+    { name: 'Fireball', rating: 47, usage: 18, win: 49 },
+    { name: 'Hunter Evolution', rating: 46, usage: 2, win: 49 },
+    { name: 'Valkyrie', rating: 46, usage: 2, win: 49 },
+    { name: 'Royal Giant Evolution', rating: 46, usage: 3, win: 49 },
+    { name: 'Electro Spirit', rating: 46, usage: 10, win: 49 },
+    { name: 'Skeletons', rating: 46, usage: 21, win: 49 },
+    { name: 'Monk', rating: 45, usage: 3, win: 49 },
+    { name: 'Goblin Machine', rating: 43, usage: 1, win: 49 },
+    { name: 'Giant Snowball Evolution', rating: 45, usage: 10, win: 49 },
+    { name: 'Poison', rating: 45, usage: 9, win: 49 },
+    { name: 'Void', rating: 43, usage: 1, win: 49 },
+    { name: 'Royal Ghost', rating: 44, usage: 1, win: 49 },
+    { name: 'Archer Queen', rating: 44, usage: 3, win: 48 },
+    { name: 'Magic Archer', rating: 44, usage: 4, win: 48 },
+    { name: 'Wall Breakers Evolution', rating: 44, usage: 6, win: 48 },
+    { name: 'Goblinstein', rating: 43, usage: 1, win: 48 },
+    { name: 'Goblin Curse', rating: 44, usage: 3, win: 48 },
+    { name: 'Hero Musketeer', rating: 43, usage: 23, win: 48 },
+    { name: 'Elixir Golem', rating: 43, usage: 3, win: 48 },
+    { name: 'Elite Barbarians', rating: 42, usage: 1, win: 48 },
+    { name: 'Hero Knight', rating: 42, usage: 31, win: 48 },
+    { name: 'Goblin Gang', rating: 43, usage: 7, win: 48 },
+    { name: 'Freeze', rating: 43, usage: 3, win: 48 },
+    { name: 'Barbarians Evolution', rating: 41, usage: 1, win: 48 },
+    { name: 'Bomber', rating: 42, usage: 2, win: 48 },
+    { name: 'Earthquake', rating: 42, usage: 4, win: 48 },
+    { name: 'Berserker', rating: 42, usage: 5, win: 48 },
+    { name: 'Musketeer Evolution', rating: 42, usage: 2, win: 48 },
+    { name: 'Goblin Drill', rating: 42, usage: 4, win: 47 },
+    { name: 'Skeleton Barrel', rating: 41, usage: 1, win: 47 },
+    { name: 'Cannon', rating: 42, usage: 6, win: 47 },
+    { name: 'Furnace', rating: 39, usage: 1, win: 47 },
+    { name: 'Skeleton Army', rating: 42, usage: 4, win: 47 },
+    { name: 'Inferno Dragon', rating: 41, usage: 2, win: 47 },
+    { name: 'Baby Dragon', rating: 40, usage: 1, win: 47 },
+    { name: 'Goblin Drill Evolution', rating: 41, usage: 2, win: 47 },
+    { name: 'Ice Golem', rating: 41, usage: 6, win: 47 },
+    { name: 'Ice Wizard', rating: 41, usage: 5, win: 47 },
+    { name: 'Mega Knight', rating: 40, usage: 2, win: 47 },
+    { name: 'Barbarians', rating: 38, usage: 1, win: 47 },
+    { name: 'Mega Knight Evolution', rating: 40, usage: 9, win: 47 },
+    { name: 'Witch', rating: 39, usage: 2, win: 47 },
+    { name: 'The Log', rating: 37, usage: 30, win: 47 },
+    { name: 'Royal Giant', rating: 36, usage: 0, win: 46 },
+    { name: 'Miner', rating: 39, usage: 8, win: 46 },
+    { name: 'Musketeer', rating: 37, usage: 1, win: 46 },
+    { name: 'Goblins', rating: 38, usage: 1, win: 46 },
+    { name: 'Mighty Miner', rating: 39, usage: 3, win: 46 },
+    { name: 'Ice Spirit', rating: 38, usage: 16, win: 46 },
+    { name: 'Royal Delivery', rating: 38, usage: 6, win: 46 },
+    { name: 'Executioner', rating: 37, usage: 1, win: 46 },
+    { name: 'Archers Evolution', rating: 37, usage: 2, win: 46 },
+    { name: 'Mini P.E.K.K.A', rating: 37, usage: 1, win: 46 },
+    { name: 'Firecracker', rating: 37, usage: 2, win: 46 },
+    { name: 'Wizard', rating: 36, usage: 1, win: 46 },
+    { name: 'Giant Snowball', rating: 37, usage: 2, win: 45 },
+    { name: 'Knight', rating: 35, usage: 1, win: 45 },
+    { name: 'Hog Rider', rating: 36, usage: 10, win: 45 },
+    { name: 'Princess', rating: 36, usage: 5, win: 45 },
+    { name: 'Firecracker Evolution', rating: 35, usage: 4, win: 45 },
+    { name: 'Skeletons Evolution', rating: 34, usage: 13, win: 45 },
+    { name: 'Goblin Barrel', rating: 35, usage: 3, win: 45 },
+    { name: 'P.E.K.K.A Evolution', rating: 35, usage: 3, win: 45 },
+    { name: 'Inferno Tower', rating: 35, usage: 2, win: 45 },
+    { name: 'Spear Goblins', rating: 34, usage: 2, win: 45 },
+    { name: 'Dart Goblin Evolution', rating: 34, usage: 3, win: 44 },
+    { name: 'Goblin Barrel Evolution', rating: 34, usage: 4, win: 44 },
+    { name: 'Tesla Evolution', rating: 34, usage: 8, win: 44 },
+    { name: 'Cannon Evolution', rating: 33, usage: 10, win: 44 },
+    { name: 'Royal Chef', rating: 34, usage: 4, win: 44 },
+    { name: 'Knight Evolution', rating: 33, usage: 2, win: 44 },
+    { name: 'Rocket', rating: 33, usage: 6, win: 44 },
+    { name: 'Archers', rating: 31, usage: 1, win: 44 },
+    { name: 'Mortar', rating: 29, usage: 0, win: 43 },
+    { name: 'Little Prince', rating: 32, usage: 2, win: 43 },
+    { name: 'Electro Dragon', rating: 29, usage: 0, win: 43 },
+    { name: 'X-Bow', rating: 31, usage: 3, win: 43 },
+    { name: 'Barbarian Hut', rating: 27, usage: 0, win: 43 },
+    { name: 'Tesla', rating: 31, usage: 2, win: 43 },
+    { name: 'Rune Giant', rating: 26, usage: 0, win: 42 },
+    { name: 'Ice Spirit Evolution', rating: 29, usage: 4, win: 42 },
+    { name: 'Goblin Giant', rating: 21, usage: 0, win: 40 },
+    { name: 'Clone', rating: 23, usage: 3, win: 39 },
+    { name: 'Mirror', rating: 21, usage: 4, win: 38 }
+  ];
+
+  // State for card mode and sorting
+  const [cardMode, setCardMode] = useState('tripleDraft');
+  const [cardSortBy, setCardSortBy] = useState('usage');
+
+  // Get sorted cards based on mode and sort option
+  const getSortedCards = () => {
+    const data = cardMode === 'tripleDraft' ? tripleDraftData : classicData;
+    const sorted = [...data].sort((a, b) => {
+      if (cardSortBy === 'usage') return b.usage - a.usage;
+      if (cardSortBy === 'winrate') return b.win - a.win;
+      return b.rating - a.rating;
+    });
+    return sorted;
+  };
 
   // Dashboard - Cards Tab
   const renderCardsTab = () => {
-    const cards = cardStats.cards || [];
-    const totalBattles = cardStats.totalBattles || 0;
+    const cards = getSortedCards();
 
     return (
       <div className="tab-content">
@@ -939,66 +1381,51 @@ function App() {
             </button>
           </div>
 
-          <div className="cards-header">
-            <p className="cards-subtitle">
-              Stats des cartes jouées par les utilisateurs du site (dernières 24h)
-            </p>
-            <div className="cards-meta">
-              <span className="meta-item">Combats analysés: {totalBattles}</span>
-              <span className="meta-item">Joueurs: {cardStats.totalUsers || 0}</span>
-            </div>
+          <div className="cards-filters">
+            <button
+              className={`filter-btn ${cardSortBy === 'usage' ? 'active' : ''}`}
+              onClick={() => setCardSortBy('usage')}
+            >
+              Trié par utilisation
+            </button>
+            <button
+              className={`filter-btn ${cardSortBy === 'winrate' ? 'active' : ''}`}
+              onClick={() => setCardSortBy('winrate')}
+            >
+              Trié par winrate
+            </button>
           </div>
 
-          {cardStatsLoading ? (
-            <div className="cards-loading">
-              <div className="searching-spinner"></div>
-              <p>Chargement des statistiques...</p>
-            </div>
-          ) : cards.length === 0 ? (
-            <div className="cards-empty">
-              <div className="empty-icon">🃏</div>
-              <h3>Pas de données</h3>
-              <p>Aucun combat {cardMode === 'tripleDraft' ? 'Triple Draft' : 'Classic Challenge'} trouvé dans les dernières 24h.</p>
-              <p className="empty-hint">Les statistiques apparaîtront quand des joueurs inscrits auront joué ce mode.</p>
-            </div>
-          ) : (
-            <>
-              <div className="cards-filters">
-                <span className="filter-label">Trié par utilisation</span>
-              </div>
-
-              <div className="cards-grid">
-                {cards.map((card, index) => (
-                  <div key={card.cardKey} className="card-stat-item">
-                    <div className="card-rank">#{index + 1}</div>
-                    <div className="card-image-container">
-                      <img
-                        src={`/Card/${card.cardKey}.png`}
-                        alt={card.cardName}
-                        className="card-image"
-                        onError={(e) => { e.target.style.display = 'none'; }}
-                      />
-                    </div>
-                    <div className="card-name">{card.cardName}</div>
-                    <div className="card-stats-row">
-                      <div className="card-stat">
-                        <span className="stat-label">Utilisé</span>
-                        <span className="stat-value">{card.totalUses}x</span>
-                      </div>
-                      <div className="card-stat">
-                        <span className="stat-label">Wins</span>
-                        <span className="stat-value positive">{card.wins}</span>
-                      </div>
-                      <div className="card-stat">
-                        <span className="stat-label">Win%</span>
-                        <span className={`stat-value ${card.winRate >= 50 ? 'positive' : 'negative'}`}>{card.winRate}%</span>
-                      </div>
-                    </div>
+          <div className="cards-grid">
+            {cards.map((card, index) => (
+              <div key={card.name} className="card-stat-item">
+                <div className="card-rank">#{index + 1}</div>
+                <div className="card-image-container">
+                  <img
+                    src={`/Card/${cardImageMap[card.name] || 'default.webp'}`}
+                    alt={card.name}
+                    className="card-image"
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                </div>
+                <div className="card-name">{card.name}</div>
+                <div className="card-stats-row">
+                  <div className="card-stat">
+                    <span className="stat-label">Rating</span>
+                    <span className="stat-value">{card.rating}</span>
                   </div>
-                ))}
+                  <div className="card-stat">
+                    <span className="stat-label">Usage</span>
+                    <span className="stat-value">{card.usage}%</span>
+                  </div>
+                  <div className="card-stat">
+                    <span className="stat-label">Win</span>
+                    <span className={`stat-value ${card.win >= 50 ? 'positive' : 'negative'}`}>{card.win}%</span>
+                  </div>
+                </div>
               </div>
-            </>
-          )}
+            ))}
+          </div>
         </div>
       </div>
     );
